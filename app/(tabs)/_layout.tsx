@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
 import { Redirect, Tabs } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  CalendarDays,
   Home as HomeIcon,
   ListTodo,
   Map,
-  Users,
-  CalendarDays,
   Settings,
+  Users,
 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../config';
 
 export default function TabLayout() {
