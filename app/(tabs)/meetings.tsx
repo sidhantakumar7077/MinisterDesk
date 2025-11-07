@@ -423,9 +423,13 @@ export default function MeetingsScreen() {
               );
             })
           ) : (
-            <View style={styles.noResults}>
-              <Text style={styles.noResultsText}>No meetings found</Text>
-              <Text style={styles.noResultsSubtext}>Pick a different day</Text>
+            <View style={styles.noTodos}>
+              <Text style={styles.noTodosText}>No meetings found</Text>
+              <Text style={styles.noTodosSubtext}>Create your first meetings or adjust your filters</Text>
+              <TouchableOpacity style={styles.createFirstButton} onPress={() => router.push('/meeting-request')}>
+                <Plus size={16} color="#1e40af" />
+                <Text style={styles.createFirstButtonText}>Create Meeting</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -691,9 +695,14 @@ const styles = StyleSheet.create({
   notesBtn: { flex: 1, flexDirection: 'row', gap: 6, borderWidth: 1, borderColor: '#bfdbfe', backgroundColor: '#eff6ff', paddingVertical: 10, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   notesBtnText: { color: '#1e40af', fontWeight: '800', fontSize: 14 },
 
-  noResults: { alignItems: 'center', paddingVertical: 40 },
-  noResultsText: { fontSize: 18, fontWeight: '800', color: '#6b7280', marginBottom: 6 },
-  noResultsSubtext: { fontSize: 14, color: '#9ca3af' },
+  noTodos: { alignItems: 'center', paddingVertical: 48 },
+  noTodosText: { fontSize: 18, fontWeight: '900', color: '#0f172a', marginBottom: 8 },
+  noTodosSubtext: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 24 },
+  createFirstButton: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
+    borderRadius: 10, backgroundColor: '#e0ecff', gap: 8, borderWidth: 1, borderColor: '#c7d2fe'
+  },
+  createFirstButtonText: { fontSize: 14, fontWeight: '900', color: '#1e3a8a' },
 
   /* Modals */
   modalContainer: { flex: 1, backgroundColor: '#fff' },

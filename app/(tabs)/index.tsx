@@ -437,6 +437,7 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 28 }}
       >
         <View style={styles.meetingsList}>
+
           {loading && (
             <View style={{ paddingVertical: 16, alignItems: 'center' }}>
               <ActivityIndicator />
@@ -446,6 +447,36 @@ export default function HomeScreen() {
 
           {!loading && selectedFilter === null && allEmptyToday && (
             <EmptyState />
+          )}
+
+          {selectedFilter === 'meetings' && !(todaysMeetings.length > 0) && (
+            <View style={styles.noResults}>
+              <LinearGradient colors={['#f8fafc', '#eef2ff']} style={styles.emptyGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Text style={styles.noResultsEmoji}>🎉</Text>
+                <Text style={styles.noResultsText}>You’re all caught up</Text>
+                <Text style={styles.noResultsSub}>No Meeting scheduled for today</Text>
+              </LinearGradient>
+            </View>
+          )}
+
+          {selectedFilter === 'tasks' && !(todaysMeetings.length > 0) && (
+            <View style={styles.noResults}>
+              <LinearGradient colors={['#f8fafc', '#eef2ff']} style={styles.emptyGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Text style={styles.noResultsEmoji}>🎉</Text>
+                <Text style={styles.noResultsText}>You’re all caught up</Text>
+                <Text style={styles.noResultsSub}>No Task scheduled for today</Text>
+              </LinearGradient>
+            </View>
+          )}
+
+          {selectedFilter === 'tours' && !(todaysMeetings.length > 0) && (
+            <View style={styles.noResults}>
+              <LinearGradient colors={['#f8fafc', '#eef2ff']} style={styles.emptyGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Text style={styles.noResultsEmoji}>🎉</Text>
+                <Text style={styles.noResultsText}>You’re all caught up</Text>
+                <Text style={styles.noResultsSub}>No Tour Plan scheduled for today</Text>
+              </LinearGradient>
+            </View>
           )}
 
           {!loading && (
@@ -812,7 +843,7 @@ const styles = StyleSheet.create({
   /* stats (modern) */
   statsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   statCardModern: {
-    flex: 1,
+    // flex: 1,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 12,

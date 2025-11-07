@@ -446,9 +446,13 @@ export default function TourPlanScreen() {
           ))}
 
           {filteredTours.length === 0 && !loading && (
-            <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-              <Text style={{ color: '#6b7280', fontWeight: '600' }}>No tours for this date</Text>
-              <Text style={{ color: '#9ca3af', marginTop: 6 }}>Pull to refresh or pick another day</Text>
+            <View style={styles.noTodos}>
+              <Text style={styles.noTodosText}>No tour plan found</Text>
+              <Text style={styles.noTodosSubtext}>Create your first tour or adjust your filters</Text>
+              <TouchableOpacity style={styles.createFirstButton} onPress={openCreate}>
+                <Plus size={16} color="#1e40af" />
+                <Text style={styles.createFirstButtonText}>Create Tour Plan</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -657,4 +661,13 @@ const styles = StyleSheet.create({
   todayText: { color: '#1e40af', fontWeight: '900' },
   cancelPickerBtn: { marginTop: 8, alignSelf: 'center' },
   cancelPickerText: { color: '#1e40af', fontWeight: '800' },
+
+  noTodos: { alignItems: 'center', paddingVertical: 48 },
+  noTodosText: { fontSize: 18, fontWeight: '900', color: '#0f172a', marginBottom: 8 },
+  noTodosSubtext: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 24 },
+  createFirstButton: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
+    borderRadius: 10, backgroundColor: '#e0ecff', gap: 8, borderWidth: 1, borderColor: '#c7d2fe'
+  },
+  createFirstButtonText: { fontSize: 14, fontWeight: '900', color: '#1e3a8a' },
 });
