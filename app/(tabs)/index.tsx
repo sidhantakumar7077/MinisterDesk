@@ -379,9 +379,9 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             {/* <Text style={styles.kicker}>Welcome back,</Text> */}
-            <Text style={styles.userName}>P.S Sambit Garnayak</Text>
+            <Text style={styles.userName}>Sambit Garnayak</Text>
             <View style={styles.roleRow}>
-              <Text style={styles.userRole}>{profile.role}</Text>
+              <Text style={styles.userRole}>P.S. to {profile.role}</Text>
               <View style={styles.dividerDot} />
               <Text style={styles.signature}>{profile.name}</Text>
             </View>
