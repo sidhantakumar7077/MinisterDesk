@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
@@ -38,6 +39,7 @@ type MeetingRow = {
   location?: string | null;
   status: 'upcoming' | 'scheduled' | 'active' | 'completed' | 'cancelled';
   category?: string | null;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
   notes?: string | null;
   is_active: boolean;
   is_recording: boolean;
@@ -63,6 +65,21 @@ function getCategoryColor(category?: string): string {
   return category && colors[category] ? colors[category] : '#6b7280';
 }
 
+function getPriorityColor(p: MeetingRow['priority']): string {
+  switch (p) {
+    case 'low':
+      return '#10b981'; // emerald
+    case 'medium':
+      return '#f59e0b'; // amber
+    case 'high':
+      return '#ea580c'; // orange
+    case 'urgent':
+      return '#dc2626'; // red
+    default:
+      return '#6b7280';
+  }
+}
+
 /* ----------------------------- Screen ----------------------------- */
 export default function MeetingsScreen() {
   const [meetingList, setMeetingList] = useState<MeetingRow[]>([]);
@@ -74,9 +91,12 @@ export default function MeetingsScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const isToday = selectedDate.toDateString() === new Date().toDateString();
 
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false); // kept for follow-up date selection
   const [pickerMonth, setPickerMonth] = useState<Date>(new Date());
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Native date picker for dateNavigation
+  const [showNativeDatePicker, setShowNativeDatePicker] = useState(false);
 
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [notesFor, setNotesFor] = useState<MeetingRow | null>(null);
@@ -304,8 +324,8 @@ export default function MeetingsScreen() {
             <TouchableOpacity
               style={styles.dateDisplay}
               onPress={() => {
-                setPickerMonth(new Date(selectedDate));
-                setShowCalendarModal(true);
+                // Open native date picker for choosing the day
+                setShowNativeDatePicker(true);
               }}
             >
               <Calendar size={16} color="#1e40af" />
@@ -361,8 +381,14 @@ export default function MeetingsScreen() {
                       </View>
                     </View>
 
-                    <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(meeting.category ?? undefined) }]}>
-                      <Text style={styles.categoryText}>{meeting.category || 'General'}</Text>
+                    {/* Right badges: category + priority */}
+                    <View style={styles.rightBadges}>
+                      <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(meeting.category ?? undefined) }]}>
+                        <Text style={styles.categoryText}>{meeting.category || 'General'}</Text>
+                      </View>
+                      <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(meeting.priority) }]}>
+                        <Text style={styles.priorityText}>{meeting.priority.toUpperCase()}</Text>
+                      </View>
                     </View>
                   </View>
 
@@ -542,7 +568,7 @@ export default function MeetingsScreen() {
           </SafeAreaView>
         </Modal>
 
-        {/* Shared Calendar Modal */}
+        {/* Shared Calendar Modal (kept for follow-up date selection) */}
         <Modal visible={showCalendarModal} transparent animationType="fade">
           <View style={styles.datePickerOverlay}>
             <View style={styles.datePickerCard}>
@@ -623,6 +649,23 @@ export default function MeetingsScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Native Date Picker for dateNavigation */}
+        {showNativeDatePicker && (
+          <DateTimePicker
+            mode="date"
+            display="default"
+            value={selectedDate}
+            onChange={(event, picked) => {
+              setShowNativeDatePicker(false);
+              if (picked) {
+                const next = new Date(selectedDate);
+                next.setFullYear(picked.getFullYear(), picked.getMonth(), picked.getDate());
+                setSelectedDate(next);
+              }
+            }}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -677,8 +720,12 @@ const styles = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#6b7280' },
   statusText: { fontSize: 12, fontWeight: '900' },
 
+  rightBadges: { alignItems: 'flex-end', gap: 6 },
   categoryBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   categoryText: { fontSize: 12, fontWeight: '800', color: '#fff' },
+
+  priorityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  priorityText: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
 
   desc: { fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 12 },
 
@@ -723,7 +770,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
-  /* Date picker overlay */
+  /* Date picker overlay (custom follow-up calendar) */
   datePickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
   datePickerCard: {
     width: '90%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 16, padding: 16,

@@ -2,6 +2,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { BookOpen, Calendar, Car, Clock, FileText, Flag, MapPin, Plane, Train, User, Users } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,27 +16,15 @@ import {
   View
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-
-import {
-  Bell,
-  BookOpen,
-  Calendar,
-  Car,
-  Clock,
-  FileText,
-  Flag,
-  MapPin,
-  Plane,
-  Train,
-  User,
-  Users,
-} from 'lucide-react-native';
-
 import { supabase } from '../config';
-
 // ✅ reusable modals
 import CreateTaskModal, { CreateTaskForm } from '../CreateTaskModal';
 import CreateTourPlanModal, { TourPlanForm } from '../CreateTourPlanModal';
+// For Notification
+// import * as Notifications from 'expo-notifications';
+// import { AppState } from 'react-native';
+// import { ensureAndroidChannel } from '../notifications-setup';
+// import { scheduleUpcomingAlarms } from '../utils/alarms';
 
 /* -------------------- Types -------------------- */
 type MeetingRow = {
@@ -156,9 +145,16 @@ export default function HomeScreen() {
     if (tasksRes.error) showToast('error', 'Tasks Error', tasksRes.error.message);
     if (toursRes.error) showToast('error', 'Tours Error', toursRes.error.message);
 
-    setMeetingList((meetingsRes.data ?? []) as MeetingRow[]);
-    setTasks(tasksRes.data ?? []);
-    setTours(toursRes.data ?? []);
+    const meetings = (meetingsRes.data ?? []) as MeetingRow[];
+    const tasks = tasksRes.data ?? [];
+    const tours = toursRes.data ?? [];
+
+    setMeetingList(meetings);
+    setTasks(tasks);
+    setTours(tours);
+
+    // ↓ schedule alarms for items starting within 15 minutes
+    // await scheduleUpcomingAlarms({ meetings, tasks, tours });
 
     setLoading(false);
     setRefreshing(false);
@@ -208,6 +204,41 @@ export default function HomeScreen() {
     return () => sub.remove();
   }, []);
 
+  // For Notification
+  // useEffect(() => {
+  //   (async () => {
+  //     await ensureAndroidChannel();
+  //     const { status } = await Notifications.getPermissionsAsync();
+  //     if (status !== 'granted') {
+  //       await Notifications.requestPermissionsAsync();
+  //     }
+  //   })();
+  // }, []);
+
+  // useEffect(() => {
+  //   let interval: any;
+  //   const onChange = (state: string) => {
+  //     if (state === 'active') {
+  //       // check every 60s
+  //       interval = setInterval(() => {
+  //         scheduleUpcomingAlarms({
+  //           meetings: meetingList,
+  //           tasks,
+  //           tours,
+  //         });
+  //       }, 60_000);
+  //     } else {
+  //       if (interval) clearInterval(interval);
+  //     }
+  //   };
+  //   const sub = AppState.addEventListener('change', onChange);
+  //   onChange('active');
+  //   return () => {
+  //     sub.remove();
+  //     if (interval) clearInterval(interval);
+  //   };
+  // }, [meetingList, tasks, tours]);
+
   /* -------------------- Today helpers & counts -------------------- */
   const todayYMD = useMemo(() => {
     const d = new Date(); const y = d.getFullYear();
@@ -255,7 +286,7 @@ export default function HomeScreen() {
         description: form.description ?? null,
         priority: form.priority,
         due_date: form.dueDate ?? todayYMD,     // DB column
-        assigned_to: form.assignedTo ?? null,
+        // assigned_to: form.assignedTo ?? null,
         category: form.category,
       };
 
@@ -295,10 +326,10 @@ export default function HomeScreen() {
         travel_mode: form.travelMode,
         status: 'planned' as const,
         category: form.category || null,
-        estimated_budget: form.estimatedBudget || null,
+        // estimated_budget: form.estimatedBudget || null,
         accompanied_by: form.accompaniedBy ? form.accompaniedBy.split(',').map(s => s.trim()).filter(Boolean) : null,
-        accommodation: form.accommodation || null,
-        special_requirements: form.specialRequirements || null,
+        // accommodation: form.accommodation || null,
+        // special_requirements: form.specialRequirements || null,
         created_by: (await supabase.auth.getUser()).data.user?.id ?? null,
       };
 
@@ -348,18 +379,18 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             {/* <Text style={styles.kicker}>Welcome back,</Text> */}
-            <Text style={styles.userName}>{profile.name}</Text>
+            <Text style={styles.userName}>P.S Sambit Garnayak</Text>
             <View style={styles.roleRow}>
               <Text style={styles.userRole}>{profile.role}</Text>
               <View style={styles.dividerDot} />
-              <Text style={styles.signature}>P.S Sambit Garnayak</Text>
+              <Text style={styles.signature}>{profile.name}</Text>
             </View>
           </View>
 
-          <View style={styles.rightHeader}>
-            {/* <View style={styles.avatar}>
+          {/* <View style={styles.rightHeader}>
+            <View style={styles.avatar}>
               <Text style={styles.avatarTxt}>{initials || 'NU'}</Text>
-            </View> */}
+            </View>
             <TouchableOpacity
               style={styles.notificationButton}
               onPress={() => showToast('info', 'No new notifications')}
@@ -367,11 +398,18 @@ export default function HomeScreen() {
               <Bell size={22} color="#1e3a8a" />
               <View style={styles.notificationBadge}><Text style={styles.notificationCount}>3</Text></View>
             </TouchableOpacity>
-          </View>
+          </View> */}
         </View>
 
         {/* Filter Chips */}
         <View style={styles.filterChips}>
+          <Pressable
+            onPress={() => setSelectedFilter(null)}
+            style={[styles.chip, selectedFilter === null && styles.chipActiveSlate]}
+          >
+            <Users size={14} color={selectedFilter === null ? '#fff' : '#334155'} />
+            <Text style={[styles.chipTxt, selectedFilter === null && styles.chipTxtActive]}>All</Text>
+          </Pressable>
           <Pressable
             onPress={() => toggleFilter('meetings')}
             style={[styles.chip, selectedFilter === 'meetings' && styles.chipActiveBlue]}
@@ -392,13 +430,6 @@ export default function HomeScreen() {
           >
             <BookOpen size={14} color={selectedFilter === 'tours' ? '#fff' : '#065f46'} />
             <Text style={[styles.chipTxt, selectedFilter === 'tours' && styles.chipTxtActive]}>Tours</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setSelectedFilter(null)}
-            style={[styles.chip, selectedFilter === null && styles.chipActiveSlate]}
-          >
-            <Users size={14} color={selectedFilter === null ? '#fff' : '#334155'} />
-            <Text style={[styles.chipTxt, selectedFilter === null && styles.chipTxtActive]}>All</Text>
           </Pressable>
         </View>
 
@@ -666,11 +697,11 @@ export default function HomeScreen() {
                                 <Text style={[styles.metaChipSoftText, { color: '#4f46e5' }]}>{tr.travel_mode}</Text>
                               </View>
                             )}
-                            {!!tr.estimated_budget && (
+                            {/* {!!tr.estimated_budget && (
                               <View style={[styles.metaChipSoft, { backgroundColor: '#ecfeff', borderColor: '#a5f3fc', borderWidth: 1 }]}>
                                 <Text style={[styles.metaChipSoftText, { color: '#0e7490' }]}>{tr.estimated_budget}</Text>
                               </View>
-                            )}
+                            )} */}
                           </View>
 
                           {when ? (
@@ -694,29 +725,29 @@ export default function HomeScreen() {
             </>
           )}
         </View>
-
-        {/* Quick Actions */}
-        <View style={styles.quickActionsSection}>
-          <SectionHeader title="Quick Actions" />
-          <View style={styles.quickActionsRow}>
-            <ActionButton
-              label="New Meeting"
-              icon={<Users size={18} color="#ffffff" />}
-              onPress={() => router.push('/meeting-request')}
-            />
-            <ActionButton
-              label="New Task"
-              icon={<BookOpen size={18} color="#ffffff" />}
-              onPress={() => setTaskModalVisible(true)}
-            />
-            <ActionButton
-              label="New Tour"
-              icon={<FileText size={18} color="#ffffff" />}
-              onPress={() => setTourModalVisible(true)}
-            />
-          </View>
-        </View>
       </ScrollView>
+
+      {/* Quick Actions */}
+      <View style={styles.quickActionsSection}>
+        <SectionHeader title="Quick Actions" />
+        <View style={styles.quickActionsRow}>
+          <ActionButton
+            label="New Meeting"
+            icon={<Users size={18} color="#ffffff" />}
+            onPress={() => router.push('/meeting-request')}
+          />
+          <ActionButton
+            label="New Task"
+            icon={<BookOpen size={18} color="#ffffff" />}
+            onPress={() => setTaskModalVisible(true)}
+          />
+          <ActionButton
+            label="New Tour"
+            icon={<FileText size={18} color="#ffffff" />}
+            onPress={() => setTourModalVisible(true)}
+          />
+        </View>
+      </View>
 
       {/* Reusable Create/Edit Task Modal — CREATE mode */}
       <CreateTaskModal
@@ -917,8 +948,8 @@ const styles = StyleSheet.create({
   emptyGradient: { width: '100%', paddingVertical: 28, borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
 
   /* Quick Actions */
-  quickActionsSection: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 },
-  quickActionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 8 },
+  quickActionsSection: { paddingHorizontal: 16, paddingVertical: 8 },
+  quickActionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, gap: 8 },
   actionBtn: {
     flex: 1,
     backgroundColor: '#1e40af',

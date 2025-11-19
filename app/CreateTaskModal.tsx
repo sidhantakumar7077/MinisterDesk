@@ -21,7 +21,7 @@ export type CreateTaskForm = {
     description?: string | null;
     priority: Priority;
     dueDate?: string | null;     // YYYY-MM-DD
-    assignedTo?: string | null;
+    // assignedTo?: string | null;
     category: string;
 };
 
@@ -38,7 +38,7 @@ type Props = {
     defaultDueDate?: string;                     // YYYY-MM-DD (used when creating)
 };
 
-const defaultCategories = ['Works Department', 'Law Department', 'Administrative', 'Personal'];
+const defaultCategories = ['Works', 'Law', 'Excise', 'Personal'];
 const defaultPriorities: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -60,8 +60,8 @@ export default function CreateTaskModal({
         description: '',
         priority: 'Medium',
         dueDate: defaultDueDate ?? ymd(new Date()),
-        assignedTo: '',
-        category: 'Administrative',
+        // assignedTo: '',
+        category: 'Works',
     });
 
     const [showDuePicker, setShowDuePicker] = React.useState(false);
@@ -74,7 +74,7 @@ export default function CreateTaskModal({
             description: initialValues?.description ?? '',
             priority: (initialValues?.priority as Priority) ?? 'Medium',
             dueDate: initialValues?.dueDate ?? defaultDueDate ?? ymd(new Date()),
-            assignedTo: initialValues?.assignedTo ?? '',
+            // assignedTo: initialValues?.assignedTo ?? '',
             category: initialValues?.category ?? 'Administrative',
         });
         setShowDuePicker(false);
@@ -101,7 +101,7 @@ export default function CreateTaskModal({
             description: form.description?.trim() || null,
             priority: form.priority,
             dueDate: form.dueDate || null,
-            assignedTo: form.assignedTo?.trim() || null,
+            // assignedTo: form.assignedTo?.trim() || null,
             category: form.category,
         });
     };
@@ -205,7 +205,7 @@ export default function CreateTaskModal({
                     </View>
 
                     {/* Assigned To */}
-                    <View style={styles.formGroup}>
+                    {/* <View style={styles.formGroup}>
                         <Text style={styles.formLabel}>Assigned To</Text>
                         <TextInput
                             style={styles.formInput}
@@ -213,7 +213,7 @@ export default function CreateTaskModal({
                             value={form.assignedTo ?? ''}
                             onChangeText={(v) => setForm((p) => ({ ...p, assignedTo: v }))}
                         />
-                    </View>
+                    </View> */}
                 </ScrollView>
 
                 {/* Footer */}

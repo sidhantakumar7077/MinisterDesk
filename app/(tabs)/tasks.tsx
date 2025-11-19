@@ -10,8 +10,7 @@ import {
   Flag,
   Plus,
   Square,
-  Trash2,
-  User,
+  Trash2
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -38,7 +37,7 @@ interface TodoItem {
   completed: boolean;
   priority: PriorityLocal;
   dueDate?: string | null; // YYYY-MM-DD
-  assignedTo?: string | null;
+  // assignedTo?: string | null;
   category: string;
   createdDate?: string | null;
   created_by?: string | null;
@@ -56,7 +55,7 @@ function mapFromDB(row: any): TodoItem {
     completed: row.completed,
     priority: row.priority,
     dueDate: row.due_date,
-    assignedTo: row.assigned_to,
+    // assignedTo: row.assigned_to,
     category: row.category,
     createdDate: row.created_date,
     created_by: row.created_by,
@@ -70,7 +69,7 @@ function mapToDB(payload: Partial<TodoItem>) {
     ...(payload.completed !== undefined && { completed: payload.completed }),
     ...(payload.priority !== undefined && { priority: payload.priority }),
     ...(payload.dueDate !== undefined && { due_date: payload.dueDate }),
-    ...(payload.assignedTo !== undefined && { assigned_to: payload.assignedTo }),
+    // ...(payload.assignedTo !== undefined && { assigned_to: payload.assignedTo }),
     ...(payload.category !== undefined && { category: payload.category }),
     ...(payload.createdDate !== undefined && { created_date: payload.createdDate }),
   };
@@ -245,7 +244,7 @@ export default function TasksScreen() {
           description: form.description ?? null,
           priority: form.priority,
           dueDate: form.dueDate ?? selectedYMD,
-          assignedTo: form.assignedTo ?? null,
+          // assignedTo: form.assignedTo ?? null,
           category: form.category,
         });
 
@@ -259,7 +258,7 @@ export default function TasksScreen() {
             completed: false,
             priority: form.priority,
             dueDate: form.dueDate ?? selectedYMD,
-            assignedTo: form.assignedTo ?? null,
+            // assignedTo: form.assignedTo ?? null,
             category: form.category,
           },
           ...prev,
@@ -278,7 +277,7 @@ export default function TasksScreen() {
           description: form.description ?? null,
           priority: form.priority,
           dueDate: form.dueDate ?? null,
-          assignedTo: form.assignedTo ?? null,
+          // assignedTo: form.assignedTo ?? null,
           category: form.category,
         });
 
@@ -293,7 +292,7 @@ export default function TasksScreen() {
                 description: form.description ?? null,
                 priority: form.priority,
                 dueDate: form.dueDate ?? null,
-                assignedTo: form.assignedTo ?? null,
+                // assignedTo: form.assignedTo ?? null,
                 category: form.category,
               }
               : t
@@ -526,12 +525,12 @@ export default function TasksScreen() {
                     </View>
                   )}
 
-                  {todo.assignedTo && (
+                  {/* {todo.assignedTo && (
                     <View style={styles.assignedBadge}>
                       <User size={12} color="#6b7280" />
                       <Text style={styles.assignedText}>{todo.assignedTo}</Text>
                     </View>
-                  )}
+                  )} */}
                 </View>
               </View>
             ))
@@ -564,7 +563,7 @@ export default function TasksScreen() {
               description: editingTodo.description ?? '',
               priority: editingTodo.priority,
               dueDate: editingTodo.dueDate ?? selectedYMD,
-              assignedTo: editingTodo.assignedTo ?? '',
+              // assignedTo: editingTodo.assignedTo ?? '',
               category: editingTodo.category,
             }
             : undefined
@@ -612,7 +611,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
 
   /* Header + Gradient */
-  headerWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 },
+  headerWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, borderBottomColor: '#e2e8f0', borderBottomWidth: 0.4, },
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: 8,
@@ -626,8 +625,8 @@ const styles = StyleSheet.create({
   },
 
   dateSection: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1, borderColor: '#e5e7eb',
+    // backgroundColor: '#ffffff',
+    // borderBottomWidth: 1, borderColor: '#e5e7eb',
     borderRadius: 16, padding: 12,
   },
   dateNavigation: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },

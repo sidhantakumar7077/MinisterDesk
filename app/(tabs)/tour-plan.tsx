@@ -1,11 +1,10 @@
 // app/(tabs)/tour-plan.tsx
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Calendar,
   Car,
-  ChevronDown,
   ChevronLeft, ChevronRight,
-  ChevronUp,
   Edit,
   MapPin, Plane,
   Plus,
@@ -41,10 +40,10 @@ type TourPlan = {
   travel_mode: 'Car' | 'Flight' | 'Train' | 'Helicopter';
   status: 'planned' | 'confirmed' | 'cancelled' | 'completed';
   category: string | null;
-  estimated_budget: string | null;
+  // estimated_budget: string | null;
   accompanied_by: string[] | null;
-  accommodation: string | null;
-  special_requirements: string | null;
+  // accommodation: string | null;
+  // special_requirements: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -67,9 +66,14 @@ export default function TourPlanScreen() {
   // 🔹 PAGE FILTER date state
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const isToday = filterDate.toDateString() === new Date().toDateString();
+
+  // Custom calendar modal (kept)
   const [showCalendarFilter, setShowCalendarFilter] = useState(false);
   const [pickerMonth, setPickerMonth] = useState<Date>(new Date());
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Native date picker for filterDate selection
+  const [showNativeDatePicker, setShowNativeDatePicker] = useState(false);
 
   // Data
   const [tours, setTours] = useState<TourPlan[]>([]);
@@ -160,10 +164,10 @@ export default function TourPlanScreen() {
       travel_mode: form.travelMode,
       status: 'planned' as TourPlan['status'],
       category: form.category || null,
-      estimated_budget: form.estimatedBudget || null,
+      // estimated_budget: form.estimatedBudget || null,
       accompanied_by: form.accompaniedBy ? form.accompaniedBy.split(',').map(s => s.trim()).filter(Boolean) : null,
-      accommodation: form.accommodation || null,
-      special_requirements: form.specialRequirements || null,
+      // accommodation: form.accommodation || null,
+      // special_requirements: form.specialRequirements || null,
       created_by: (await supabase.auth.getUser()).data.user?.id ?? null,
     };
     const { error } = await supabase.from('tour_plans').insert([body]);
@@ -187,10 +191,10 @@ export default function TourPlanScreen() {
       purpose: form.purpose || null,
       travel_mode: form.travelMode,
       category: form.category || null,
-      estimated_budget: form.estimatedBudget || null,
+      // estimated_budget: form.estimatedBudget || null,
       accompanied_by: form.accompaniedBy ? form.accompaniedBy.split(',').map(s => s.trim()).filter(Boolean) : null,
-      accommodation: form.accommodation || null,
-      special_requirements: form.specialRequirements || null,
+      // accommodation: form.accommodation || null,
+      // special_requirements: form.specialRequirements || null,
     };
     const { error } = await supabase.from('tour_plans').update(body).eq('id', id);
     if (error) {
@@ -314,7 +318,11 @@ export default function TourPlanScreen() {
 
             <TouchableOpacity
               style={styles.dateDisplay}
-              onPress={() => { setPickerMonth(new Date(filterDate)); setShowCalendarFilter(true); }}
+              onPress={() => setShowNativeDatePicker(true)}       // 👈 native picker
+              onLongPress={() => {                                // 👈 hold to open custom calendar (optional)
+                setPickerMonth(new Date(filterDate));
+                setShowCalendarFilter(true);
+              }}
             >
               <Calendar size={16} color="#1e40af" />
               <Text style={styles.dateText}>
@@ -381,22 +389,20 @@ export default function TourPlanScreen() {
 
                 <View style={styles.detailRow}>
                   {getTravelIcon(tour.travel_mode)}
-                  <Text style={styles.detailText}>
-                    {tour.travel_mode}{tour.estimated_budget ? ` • ${tour.estimated_budget}` : ''}
-                  </Text>
+                  <Text style={styles.expandedText}>{tour.category ?? '—'}</Text>
                 </View>
 
                 {!!tour.accompanied_by?.length && (
                   <View style={styles.detailRow}>
                     <User size={16} color="#6b7280" />
                     <Text style={styles.detailText}>
-                      {tour.accompanied_by.length} accompanying • {tour.category ?? '—'}
+                      {tour.accompanied_by.length} accompanying • {tour.accompanied_by.join(', ')}
                     </Text>
                   </View>
                 )}
               </View>
 
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={styles.expandButton}
                 onPress={() => setExpandedTour(expandedTour === tour.id ? null : tour.id)}
               >
@@ -414,20 +420,8 @@ export default function TourPlanScreen() {
                       <Text style={styles.expandedText}>{tour.accompanied_by.join(', ')}</Text>
                     </View>
                   )}
-                  {!!tour.accommodation && (
-                    <View style={styles.expandedSection}>
-                      <Text style={styles.expandedSectionTitle}>Accommodation</Text>
-                      <Text style={styles.expandedText}>{tour.accommodation}</Text>
-                    </View>
-                  )}
-                  {!!tour.special_requirements && (
-                    <View style={styles.expandedSection}>
-                      <Text style={styles.expandedSectionTitle}>Special Requirements</Text>
-                      <Text style={styles.expandedText}>{tour.special_requirements}</Text>
-                    </View>
-                  )}
                 </View>
-              )}
+              )} */}
 
               <View style={styles.tourActions}>
                 <TouchableOpacity style={styles.editButton} onPress={() => openEdit(tour)}>
@@ -457,7 +451,7 @@ export default function TourPlanScreen() {
           )}
         </View>
 
-        {/* 🔹 Filter Calendar Modal (for page date filter) */}
+        {/* 🔹 Filter Calendar Modal (custom page date filter) */}
         <Modal visible={showCalendarFilter} transparent animationType="fade">
           <View style={styles.datePickerOverlay}>
             <View style={styles.datePickerCard}>
@@ -527,6 +521,24 @@ export default function TourPlanScreen() {
         </Modal>
       </ScrollView>
 
+      {/* Native Date Picker for page date filter */}
+      {showNativeDatePicker && (
+        <DateTimePicker
+          mode="date"
+          display="default"
+          value={filterDate}
+          onChange={(event: any, picked?: Date) => {
+            // Android fires for dismiss too; iOS returns once.
+            setShowNativeDatePicker(false);
+            if (picked) {
+              const next = new Date(filterDate);
+              next.setFullYear(picked.getFullYear(), picked.getMonth(), picked.getDate());
+              setFilterDate(next);
+            }
+          }}
+        />
+      )}
+
       {/* Reusable Create/Edit Modal */}
       <CreateTourPlanModal
         visible={modalVisible}
@@ -549,10 +561,10 @@ export default function TourPlanScreen() {
           purpose: editing.purpose ?? '',
           travelMode: editing.travel_mode,
           category: editing.category ?? categories[0],
-          estimatedBudget: editing.estimated_budget ?? '',
+          // estimatedBudget: editing.estimated_budget ?? '',
           accompaniedBy: (editing.accompanied_by ?? []).join(', '),
-          accommodation: editing.accommodation ?? '',
-          specialRequirements: editing.special_requirements ?? '',
+          // accommodation: editing.accommodation ?? '',
+          // specialRequirements: editing.special_requirements ?? '',
         } : undefined}
         categories={categories}
       />
@@ -567,7 +579,7 @@ export default function TourPlanScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
 
-  headerWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 },
+  headerWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, borderBottomColor: '#e2e8f0', borderBottomWidth: 0.4, },
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -583,8 +595,6 @@ const styles = StyleSheet.create({
 
   /* Page Date Section (glassy card) */
   dateSection: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1, borderColor: '#e5e7eb',
     borderRadius: 16, padding: 12,
   },
   dateNavigation: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },

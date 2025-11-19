@@ -1,22 +1,14 @@
 // components/CreateTourPlanModal.tsx
+import DateTimePicker, { AndroidNativeProps, IOSNativeProps } from '@react-native-community/datetimepicker';
 import {
-    Calendar,
-    Car,
-    Clock,
-    Plane,
-    Save,
-    Train,
-    X
+  Calendar, Car, Clock, Plane, Save, Train, X
 } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    Modal, SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Modal,
+  Platform,
+  SafeAreaView, ScrollView, StyleSheet, Text, TextInput,
+  TouchableOpacity, View
 } from 'react-native';
 
 export type TourPlanForm = {
@@ -29,10 +21,7 @@ export type TourPlanForm = {
   purpose: string;
   travelMode: 'Car' | 'Flight' | 'Train' | 'Helicopter';
   category: string;
-  estimatedBudget: string;
   accompaniedBy: string; // comma separated
-  accommodation: string;
-  specialRequirements: string;
 };
 
 type Props = {
@@ -63,10 +52,41 @@ const ymd = (d: Date) => {
 };
 
 const isValidDateStr = (s?: string) => !!s && !Number.isNaN(new Date(s).getTime());
-const fmt = (s?: string) =>
+const fmtDate = (s?: string) =>
   isValidDateStr(s)
     ? new Date(s!).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
     : 'Select date';
+
+const fmtTime = (t?: string) => t?.trim() || 'Select time';
+
+// parse "h:mm AM" into a Date (today's date)
+const parseTimeToDate = (timeStr: string) => {
+  // default 9:00 AM
+  const base = new Date();
+  const m = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  let hours = 9, minutes = 0, ampm: string | undefined = 'AM';
+  if (m) {
+    hours = Number(m[1]);
+    minutes = Number(m[2]);
+    ampm = m[3].toUpperCase();
+  }
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  const d = new Date(base);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+};
+
+// format Date -> "h:mm AM"
+const formatTime12h = (d: Date) => {
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if (h === 0) h = 12;
+  const mm = String(m).padStart(2, '0');
+  return `${h}:${mm} ${ampm}`;
+};
 
 export default function CreateTourPlanModal({
   visible,
@@ -78,15 +98,12 @@ export default function CreateTourPlanModal({
   categories = defaultCategories,
   loading,
 }: Props) {
-
   // Build a fresh form object from props (used on mount & when opening)
   const buildInitialForm = (seed?: Partial<TourPlanForm>): TourPlanForm => {
     const safeCategory =
       (seed?.category && categories.includes(seed.category) ? seed.category : categories[0]) || categories[0];
-
     const safeTravelMode =
       (seed?.travelMode as TourPlanForm['travelMode']) ?? 'Car';
-
     return {
       title: seed?.title ?? '',
       destination: seed?.destination ?? '',
@@ -97,63 +114,29 @@ export default function CreateTourPlanModal({
       purpose: seed?.purpose ?? '',
       travelMode: safeTravelMode,
       category: safeCategory,
-      estimatedBudget: seed?.estimatedBudget ?? '',
       accompaniedBy: seed?.accompaniedBy ?? '',
-      accommodation: seed?.accommodation ?? '',
-      specialRequirements: seed?.specialRequirements ?? '',
     };
   };
 
   const [form, setForm] = useState<TourPlanForm>(buildInitialForm(initial));
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>('start');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  // 🔁 Rehydrate the form whenever the modal becomes visible,
-  // or when mode/initial/categories change.
+  // unified DateTimePicker state
+  type PickerTarget = 'startDate' | 'endDate' | 'startTime' | 'endTime' | null;
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null);
+  const [pickerValue, setPickerValue] = useState<Date>(new Date());
+
+  // Hydrate form when modal opens
   useEffect(() => {
     if (visible) {
-      setForm(buildInitialForm(initial));
+      const newForm = buildInitialForm(initial);
+      setForm(newForm);
       setErrors({});
-      // default the embedded calendar to whichever date we’re picking, if present
-      const pick = (datePickerMode === 'end' ? form.endDate : form.startDate);
-      setSelectedDate(isValidDateStr(pick) ? new Date(pick) : new Date());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, mode, initial, categories]);
-
-  const months = useMemo(
-    () => ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-    []
-  );
-
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-    const days: { day: string | ''; isCurrentMonth: boolean; date: number | null }[] = [];
-    for (let i = 0; i < startingDayOfWeek; i++) days.push({ day: '', isCurrentMonth: false, date: null });
-    for (let day = 1; day <= daysInMonth; day++) days.push({ day: String(day), isCurrentMonth: true, date: day });
-    return days;
-  };
-  const days = getDaysInMonth(selectedDate);
-
-  const navigateMonthForm = (dir: 'prev' | 'next') => {
-    const d = new Date(selectedDate);
-    d.setMonth(d.getMonth() + (dir === 'prev' ? -1 : 1));
-    setSelectedDate(d);
-  };
-
-  const handleDateSelectForm = (date: Date) => {
-    const val = ymd(date);
-    if (datePickerMode === 'start') updateField('startDate', val);
-    else updateField('endDate', val);
-    setShowDatePicker(false);
-  };
 
   const updateField = (field: keyof TourPlanForm, value: string) => {
     setForm((p) => ({ ...p, [field]: value }));
@@ -187,6 +170,48 @@ export default function CreateTourPlanModal({
     if (!validate()) return;
     await onSubmit(form);
   };
+
+  // ---- DateTimePicker handlers ----
+  const openPicker = (target: PickerTarget) => {
+    if (!target) return;
+    let mode: 'date' | 'time' = (target === 'startDate' || target === 'endDate') ? 'date' : 'time';
+
+    // current value to seed picker
+    let current = new Date();
+    if (target === 'startDate' && isValidDateStr(form.startDate)) current = new Date(form.startDate);
+    if (target === 'endDate' && isValidDateStr(form.endDate)) current = new Date(form.endDate);
+    if (target === 'startTime') current = parseTimeToDate(form.startTime || '9:00 AM');
+    if (target === 'endTime') current = parseTimeToDate(form.endTime || '5:00 PM');
+
+    setPickerTarget(target);
+    setPickerMode(mode);
+    setPickerValue(current);
+    setPickerVisible(true);
+  };
+
+  const onChangePicker: AndroidNativeProps['onChange'] & IOSNativeProps['onChange'] = (e, selected) => {
+    // For Android: user can press "dismiss"
+    if (Platform.OS === 'android') {
+      setPickerVisible(false);
+    }
+    if (!selected || !pickerTarget) return;
+
+    if (pickerTarget === 'startDate' || pickerTarget === 'endDate') {
+      updateField(pickerTarget, ymd(selected));
+    } else if (pickerTarget === 'startTime' || pickerTarget === 'endTime') {
+      updateField(pickerTarget, formatTime12h(selected));
+    }
+
+    if (Platform.OS === 'ios') {
+      // keep visible for iOS inline modal; you could add a toolbar if desired
+      setPickerValue(selected);
+    }
+  };
+
+  const months = useMemo(
+    () => ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    []
+  );
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -255,27 +280,27 @@ export default function CreateTourPlanModal({
                   <Text style={styles.scheduleCardTitle}>Departure</Text>
                 </View>
 
+                {/* Start Date */}
                 <TouchableOpacity
                   style={[styles.dateSelector, errors.startDate && styles.inputError]}
-                  onPress={() => { setDatePickerMode('start'); setShowDatePicker(true); }}
+                  onPress={() => openPicker('startDate')}
                 >
                   <View style={styles.dateSelectorContent}>
                     <Calendar size={16} color="#6b7280" />
                     <Text style={[styles.dateSelectorText, !form.startDate && styles.placeholderText]}>
-                      {fmt(form.startDate)}
+                      {fmtDate(form.startDate)}
                     </Text>
                   </View>
                 </TouchableOpacity>
 
+                {/* Start Time */}
                 <View style={styles.timeInputWrapper}>
                   <View style={styles.timeInputIcon}><Clock size={16} color="#6b7280" /></View>
-                  <TextInput
-                    style={styles.customTimeInput}
-                    placeholder="9:00 AM"
-                    value={form.startTime}
-                    onChangeText={(t) => updateField('startTime', t)}
-                    placeholderTextColor="#9ca3af"
-                  />
+                  <TouchableOpacity style={{ flex: 1 }} onPress={() => openPicker('startTime')}>
+                    <Text style={[styles.customTimeInput, !form.startTime && styles.placeholderText]}>
+                      {fmtTime(form.startTime)}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 {!!errors.startDate && <Text style={styles.scheduleErrorText}>{errors.startDate}</Text>}
@@ -284,6 +309,7 @@ export default function CreateTourPlanModal({
               {/* Arrow + End */}
               <View style={styles.arrowSeparator}><View style={styles.arrowLine} /><View style={styles.arrowHead} /></View>
 
+              {/* End */}
               <View style={styles.scheduleCard}>
                 <View style={styles.scheduleCardHeader}>
                   <View style={[styles.scheduleIconContainer, { backgroundColor: '#dc262615' }]}>
@@ -292,27 +318,27 @@ export default function CreateTourPlanModal({
                   <Text style={styles.scheduleCardTitle}>Return</Text>
                 </View>
 
+                {/* End Date */}
                 <TouchableOpacity
                   style={[styles.dateSelector, errors.endDate && styles.inputError]}
-                  onPress={() => { setDatePickerMode('end'); setShowDatePicker(true); }}
+                  onPress={() => openPicker('endDate')}
                 >
                   <View style={styles.dateSelectorContent}>
                     <Calendar size={16} color="#6b7280" />
                     <Text style={[styles.dateSelectorText, !form.endDate && styles.placeholderText]}>
-                      {fmt(form.endDate)}
+                      {fmtDate(form.endDate)}
                     </Text>
                   </View>
                 </TouchableOpacity>
 
+                {/* End Time */}
                 <View style={styles.timeInputWrapper}>
                   <View style={styles.timeInputIcon}><Clock size={16} color="#6b7280" /></View>
-                  <TextInput
-                    style={styles.customTimeInput}
-                    placeholder="5:00 PM"
-                    value={form.endTime}
-                    onChangeText={(t) => updateField('endTime', t)}
-                    placeholderTextColor="#9ca3af"
-                  />
+                  <TouchableOpacity style={{ flex: 1 }} onPress={() => openPicker('endTime')}>
+                    <Text style={[styles.customTimeInput, !form.endTime && styles.placeholderText]}>
+                      {fmtTime(form.endTime)}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 {!!errors.endDate && <Text style={styles.scheduleErrorText}>{errors.endDate}</Text>}
@@ -362,22 +388,6 @@ export default function CreateTourPlanModal({
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Estimated Budget</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., ₹2,50,000"
-                value={form.estimatedBudget}
-                onChangeText={(t) => updateField('estimatedBudget', t)}
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-          </View>
-
-          {/* Additional */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Additional Details</Text>
-
-            <View style={styles.inputGroup}>
               <Text style={styles.label}>Accompanied By</Text>
               <TextInput
                 style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
@@ -386,30 +396,6 @@ export default function CreateTourPlanModal({
                 onChangeText={(t) => updateField('accompaniedBy', t)}
                 multiline
                 numberOfLines={2}
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Accommodation</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., Hotel Sheetal, Sambalpur"
-                value={form.accommodation}
-                onChangeText={(t) => updateField('accommodation', t)}
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Special Requirements</Text>
-              <TextInput
-                style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
-                placeholder="Any special arrangements or requirements"
-                value={form.specialRequirements}
-                onChangeText={(t) => updateField('specialRequirements', t)}
-                multiline
-                numberOfLines={3}
                 placeholderTextColor="#9ca3af"
               />
             </View>
@@ -429,52 +415,24 @@ export default function CreateTourPlanModal({
         </View>
       </SafeAreaView>
 
-      {/* Inline date picker (custom) */}
-      <Modal visible={showDatePicker} transparent animationType="fade">
-        <View style={styles.datePickerOverlay}>
-          <View style={styles.datePickerContainer}>
-            <View style={styles.datePickerHeader}>
-              <Text style={styles.datePickerTitle}>Select {datePickerMode === 'start' ? 'Departure' : 'Return'} Date</Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}><X size={24} color="#6b7280" /></TouchableOpacity>
-            </View>
-
-            <View style={styles.monthNavigation}>
-              <TouchableOpacity onPress={() => navigateMonthForm('prev')} style={styles.navButton}><Text style={styles.navButtonText}>‹</Text></TouchableOpacity>
-              <Text style={styles.monthText}>{months[selectedDate.getMonth()]} {selectedDate.getFullYear()}</Text>
-              <TouchableOpacity onPress={() => navigateMonthForm('next')} style={styles.navButton}><Text style={styles.navButtonText}>›</Text></TouchableOpacity>
-            </View>
-
-            <View style={styles.calendarContainer}>
-              <View style={styles.weekHeader}>
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <Text key={d} style={styles.dayHeader}>{d}</Text>)}
-              </View>
-              <View style={styles.calendar}>
-                {days.map((day, idx) => {
-                  const d = day.date ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day.date) : null;
-                  const isTodayCell = d && d.toDateString() === new Date().toDateString();
-                  return (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[styles.dayCell, !day.isCurrentMonth && styles.inactiveDayCell, isTodayCell && styles.todayDayCell]}
-                      disabled={!day.isCurrentMonth}
-                      onPress={() => d && handleDateSelectForm(d)}
-                    >
-                      <Text style={[styles.dayText, !day.isCurrentMonth && styles.inactiveDayText, isTodayCell && styles.todayDayText]}>
-                        {day.day}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* System Date/Time Picker */}
+      {pickerVisible && (
+        <DateTimePicker
+          value={pickerValue}
+          mode={pickerMode}
+          onChange={onChangePicker}
+          display={Platform.OS === 'ios' ? 'inline' : 'default'}
+          // 12-hour clock where supported
+          is24Hour={false}
+        // Ensure min date for endDate if you want (optional):
+        // minimumDate={pickerTarget === 'endDate' && isValidDateStr(form.startDate) ? new Date(form.startDate) : undefined}
+        />
+      )}
     </Modal>
   );
 }
 
-/* Local styles unchanged ... */
+/* Styles unchanged except removed custom calendar styles */
 const styles = StyleSheet.create({
   modalContainer: { flex: 1, backgroundColor: '#ffffff' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
@@ -521,24 +479,4 @@ const styles = StyleSheet.create({
   cancelButtonText: { fontSize: 16, fontWeight: '600', color: '#6b7280' },
   submitButton: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 8, backgroundColor: '#1e40af', gap: 8 },
   submitButtonText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
-
-  /* Embedded date picker styles */
-  datePickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
-  datePickerContainer: { backgroundColor: '#ffffff', borderRadius: 20, padding: 24, margin: 20, width: '90%', maxWidth: 400 },
-  datePickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  datePickerTitle: { fontSize: 18, fontWeight: '700', color: '#1f2937' },
-  monthNavigation: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  navButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20, backgroundColor: '#f1f5f9' },
-  navButtonText: { fontSize: 20, fontWeight: '600', color: '#1e40af' },
-  monthText: { fontSize: 18, fontWeight: '700', color: '#1f2937' },
-  calendarContainer: { backgroundColor: '#ffffff' },
-  weekHeader: { flexDirection: 'row', marginBottom: 16 },
-  dayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#6b7280', paddingVertical: 8 },
-  calendar: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderRadius: 8 },
-  inactiveDayCell: { opacity: 0.3 },
-  todayDayCell: { backgroundColor: '#1e40af' },
-  dayText: { fontSize: 16, fontWeight: '600', color: '#1f2937' },
-  inactiveDayText: { color: '#9ca3af' },
-  todayDayText: { color: '#ffffff' },
 });
