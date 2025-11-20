@@ -10,7 +10,9 @@ import {
   Plus,
   Save,
   Square,
-  UserPlus, X,
+  UserPlus,
+  Users,
+  X
 } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -45,6 +47,8 @@ type MeetingRow = {
   is_recording: boolean;
   started_at?: string | null;
   ended_at?: string | null;
+  attendees?: string[] | null; // 👈 NEW
+  updated_at?: string | null;  // 👈 Optional, if table has it
 };
 
 const statusesColor: Record<MeetingRow['status'], string> = {
@@ -57,27 +61,32 @@ const statusesColor: Record<MeetingRow['status'], string> = {
 
 function getCategoryColor(category?: string): string {
   const colors: Record<string, string> = {
-    'Law Department': '#7c3aed',
-    'Works Department': '#1e40af',
-    'Joint Meeting': '#059669',
-    'Administrative': '#f59e0b',
+    'works': '#f59e0b',
+    'law': '#7c3aed',
+    'excise': '#1e40af',
+    'personal': '#ef4444'
   };
   return category && colors[category] ? colors[category] : '#6b7280';
 }
 
 function getPriorityColor(p: MeetingRow['priority']): string {
   switch (p) {
-    case 'low':
-      return '#10b981'; // emerald
-    case 'medium':
-      return '#f59e0b'; // amber
-    case 'high':
-      return '#ea580c'; // orange
-    case 'urgent':
-      return '#dc2626'; // red
-    default:
-      return '#6b7280';
+    case 'low': return '#10b981';     // emerald
+    case 'medium': return '#f59e0b';  // amber
+    case 'high': return '#ea580c';    // orange
+    case 'urgent': return '#dc2626';  // red
+    default: return '#6b7280';
   }
+}
+
+function formatDateNice(s?: string | null) {
+  if (!s) return '';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit'
+  });
 }
 
 /* ----------------------------- Screen ----------------------------- */
@@ -229,10 +238,18 @@ export default function MeetingsScreen() {
   const saveNotes = async () => {
     if (!notesFor) return;
     try {
+      const nowIso = new Date().toISOString();
       const { error } = await supabase.from('meetings').update({ notes: notesText }).eq('id', notesFor.id);
       if (error) throw error;
-      setLocalState(prev => ({ ...prev, [notesFor.id]: { ...(prev[notesFor.id] ?? {}), notes: notesText } }));
-      setShowNotesModal(false);
+      // keep local echo (also store a local saved timestamp so we can show a date even if table lacks updated_at)
+      setLocalState(prev => ({
+        ...prev,
+        [notesFor.id]: {
+          ...(prev[notesFor.id] ?? {}),
+          notes: notesText,
+          notes_saved_at: nowIso,
+        }
+      }));
       Toast.show({ type: 'success', text1: 'Notes saved' });
       fetchMeetings();
     } catch (e: any) {
@@ -323,10 +340,7 @@ export default function MeetingsScreen() {
 
             <TouchableOpacity
               style={styles.dateDisplay}
-              onPress={() => {
-                // Open native date picker for choosing the day
-                setShowNativeDatePicker(true);
-              }}
+              onPress={() => setShowNativeDatePicker(true)}
             >
               <Calendar size={16} color="#1e40af" />
               <Text style={styles.dateText}>
@@ -420,6 +434,15 @@ export default function MeetingsScreen() {
                     </View>
                   )}
 
+                  {!!meeting.attendees && meeting.attendees.length > 0 && (
+                    <View style={styles.infoRow}>
+                      <Users size={16} color="#6b7280" />
+                      <Text style={styles.infoText}>
+                        {meeting.attendees.join(', ')}
+                      </Text>
+                    </View>
+                  )}
+
                   <View style={styles.actionsRow}>
                     {(meeting.status === 'upcoming' || isActive) && (
                       !isActive ? (
@@ -481,6 +504,23 @@ export default function MeetingsScreen() {
                 textAlignVertical="top"
                 placeholderTextColor="#9ca3af"
               />
+
+              {/* 👇 Show last saved notes preview with date, if any */}
+              {!!notesFor && ((localState[notesFor.id]?.notes ?? notesFor.notes)?.trim()?.length > 0) && (
+                <View style={styles.savedNotesBox}>
+                  <Text style={styles.savedNotesLabel}>
+                    Last saved {formatDateNice(
+                      localState[notesFor.id]?.notes_saved_at ||
+                      notesFor.updated_at ||
+                      notesFor.ended_at ||
+                      notesFor.meeting_date
+                    )}
+                  </Text>
+                  <Text style={styles.savedNotesText}>
+                    {localState[notesFor.id]?.notes ?? notesFor.notes}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.modalFooterRow}>
@@ -762,6 +802,11 @@ const styles = StyleSheet.create({
   modalSubtitle: { fontSize: 14, color: '#6b7280', marginBottom: 12 },
 
   notesInput: { minHeight: 160, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12, padding: 12, fontSize: 16, color: '#1f2937' },
+  /* Saved notes preview */
+  savedNotesBox: { marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e5e7eb' },
+  savedNotesLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', marginBottom: 6 },
+  savedNotesText: { fontSize: 14, color: '#374151', lineHeight: 20 },
+
   modalFooterRow: { padding: 20, borderTopWidth: 1, borderTopColor: '#e2e8f0' },
   primaryBtn: {
     flexDirection: 'row', gap: 8, backgroundColor: '#1e40af',

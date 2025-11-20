@@ -1,7 +1,18 @@
 import { useRouter } from 'expo-router';
-import { Bell, Calendar, ChevronRight, CircleHelp as HelpCircle, Lock, LogOut, User } from 'lucide-react-native';
+import { ChevronRight, Eye, EyeOff, Lock, LogOut, User } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import { supabase } from '../config';
 
 type Profile = {
@@ -12,33 +23,48 @@ type Profile = {
   username?: string | null;
 };
 
-const settingsData = [
-  {
-    category: 'Profile',
-    icon: User,
-    items: [
-      { id: 'profile', title: 'Edit Profile', subtitle: 'Update your personal information', hasArrow: true },
-      { id: 'preferences', title: 'Preferences', subtitle: 'Customize your experience', hasArrow: true },
-    ],
-  },
-  {
-    category: 'Notifications',
-    icon: Bell,
-    items: [
-      { id: 'push', title: 'Push Notifications', subtitle: 'Receive meeting reminders', hasSwitch: true, enabled: true },
-      { id: 'email', title: 'Email Notifications', subtitle: 'Get updates via email', hasSwitch: true, enabled: false },
-      { id: 'sound', title: 'Sound Alerts', subtitle: 'Audio notifications for meetings', hasSwitch: true, enabled: true },
-    ],
-  },
-  {
-    category: 'Calendar',
-    icon: Calendar,
-    items: [
-      { id: 'sync', title: 'Calendar Sync', subtitle: 'Sync with device calendar', hasSwitch: true, enabled: true },
-      { id: 'reminders', title: 'Default Reminders', subtitle: '15 minutes before meetings', hasArrow: true },
-      { id: 'timezone', title: 'Time Zone', subtitle: 'India Standard Time (UTC+5:30)', hasArrow: true },
-    ],
-  },
+type SettingItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  hasArrow?: boolean;
+  hasSwitch?: boolean;
+  enabled?: boolean;
+};
+
+type SettingsCategory = {
+  category: string;
+  icon: any;
+  items: SettingItem[];
+};
+
+const settingsData: SettingsCategory[] = [
+  // {
+  //   category: 'Profile',
+  //   icon: User,
+  //   items: [
+  //     { id: 'profile', title: 'Edit Profile', subtitle: 'Update your personal information', hasArrow: true },
+  //     { id: 'preferences', title: 'Preferences', subtitle: 'Customize your experience', hasArrow: true },
+  //   ],
+  // },
+  // {
+  //   category: 'Notifications',
+  //   icon: Bell,
+  //   items: [
+  //     { id: 'push', title: 'Push Notifications', subtitle: 'Receive meeting reminders', hasSwitch: true, enabled: true },
+  //     { id: 'email', title: 'Email Notifications', subtitle: 'Get updates via email', hasSwitch: true, enabled: false },
+  //     { id: 'sound', title: 'Sound Alerts', subtitle: 'Audio notifications for meetings', hasSwitch: true, enabled: true },
+  //   ],
+  // },
+  // {
+  //   category: 'Calendar',
+  //   icon: Calendar,
+  //   items: [
+  //     { id: 'sync', title: 'Calendar Sync', subtitle: 'Sync with device calendar', hasSwitch: true, enabled: true },
+  //     { id: 'reminders', title: 'Default Reminders', subtitle: '15 minutes before meetings', hasArrow: true },
+  //     { id: 'timezone', title: 'Time Zone', subtitle: 'India Standard Time (UTC+5:30)', hasArrow: true },
+  //   ],
+  // },
   // {
   //   category: 'Appearance',
   //   icon: Moon,
@@ -52,19 +78,19 @@ const settingsData = [
     icon: Lock,
     items: [
       { id: 'password', title: 'Change Password', subtitle: 'Update your account password', hasArrow: true },
-      { id: 'biometric', title: 'Biometric Login', subtitle: 'Use fingerprint or face ID', hasSwitch: true, enabled: false },
-      { id: 'backup', title: 'Data Backup', subtitle: 'Backup your meetings and contacts', hasArrow: true },
+      // { id: 'biometric', title: 'Biometric Login', subtitle: 'Use fingerprint or face ID', hasSwitch: true, enabled: false },
+      // { id: 'backup', title: 'Data Backup', subtitle: 'Backup your meetings and contacts', hasArrow: true },
     ],
   },
-  {
-    category: 'Support',
-    icon: HelpCircle,
-    items: [
-      { id: 'help', title: 'Help Center', subtitle: 'Get help and support', hasArrow: true },
-      { id: 'feedback', title: 'Send Feedback', subtitle: 'Help us improve the app', hasArrow: true },
-      { id: 'about', title: 'About', subtitle: 'App version 1.0.0', hasArrow: true },
-    ],
-  },
+  // {
+  //   category: 'Support',
+  //   icon: HelpCircle,
+  //   items: [
+  //     { id: 'help', title: 'Help Center', subtitle: 'Get help and support', hasArrow: true },
+  //     { id: 'feedback', title: 'Send Feedback', subtitle: 'Help us improve the app', hasArrow: true },
+  //     { id: 'about', title: 'About', subtitle: 'App version 1.0.0', hasArrow: true },
+  //   ],
+  // },
 ];
 
 export default function SettingsScreen() {
@@ -76,6 +102,7 @@ export default function SettingsScreen() {
     name: 'New User',
     email: '',
     role: 'staff',
+    username: null,
   });
   const [loadingProfile, setLoadingProfile] = useState(true);
 
@@ -90,6 +117,18 @@ export default function SettingsScreen() {
 
   const [signingOut, setSigningOut] = useState(false);
 
+  // 🔐 Change Password Modal state
+  const [showChangePassModal, setShowChangePassModal] = useState(false);
+  const [cpUsername, setCpUsername] = useState('');
+  const [cpPassword, setCpPassword] = useState('');
+  const [cpConfirm, setCpConfirm] = useState('');
+  const [cpSaving, setCpSaving] = useState(false);
+  const [cpError, setCpError] = useState('');
+
+  // 👁️ visibility toggles
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   useEffect(() => {
     let mounted = true;
 
@@ -100,12 +139,10 @@ export default function SettingsScreen() {
         const uemail = auth.user?.email ?? '';
 
         if (!uid) {
-          // not signed in; push to login
           router.replace('/(auth)/login');
           return;
         }
 
-        // Load profile from public.users (fallback to auth values)
         const { data: row } = await supabase
           .from('users')
           .select('id, name, email, role, username')
@@ -113,13 +150,19 @@ export default function SettingsScreen() {
           .maybeSingle();
 
         if (mounted) {
-          setProfile({
+          const nextProfile: Profile = {
             id: uid,
-            name: row?.name ?? auth.user?.user_metadata?.full_name ?? 'New User',
+            name: row?.name ?? (auth.user?.user_metadata?.full_name ?? 'New User'),
             email: row?.email ?? uemail,
             role: row?.role ?? 'staff',
             username: row?.username ?? null,
-          });
+          };
+          setProfile(nextProfile);
+
+          const derivedUsername =
+            nextProfile.username ??
+            (nextProfile.email ? nextProfile.email.split('@')[0] : 'user');
+          setCpUsername(derivedUsername);
         }
       } finally {
         if (mounted) setLoadingProfile(false);
@@ -141,13 +184,59 @@ export default function SettingsScreen() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      router.replace('/(auth)/login'); // ensure you have this route
+      router.replace('/(auth)/login');
     } catch (e: any) {
       Alert.alert('Sign out failed', e?.message ?? 'Please try again.');
     } finally {
       setSigningOut(false);
     }
   }
+
+  // 🔐 Handle Save (username + password)
+  const handleSaveChangePassword = async () => {
+    if (cpSaving) return;
+    setCpError('');
+
+    const wantToChangePassword = cpPassword.trim().length > 0 || cpConfirm.trim().length > 0;
+
+    if (wantToChangePassword) {
+      if (cpPassword.trim().length < 6) {
+        setCpError('Password must be at least 6 characters.');
+        return;
+      }
+      if (cpPassword !== cpConfirm) {
+        setCpError('New password and confirm password do not match.');
+        return;
+      }
+    }
+
+    setCpSaving(true);
+    try {
+      if (profile.id && cpUsername && cpUsername !== (profile.username ?? '')) {
+        const { error: uErr } = await supabase
+          .from('users')
+          .update({ username: cpUsername })
+          .eq('id', profile.id);
+        if (uErr) throw uErr;
+
+        setProfile(prev => ({ ...prev, username: cpUsername }));
+      }
+
+      if (wantToChangePassword) {
+        const { error: pErr } = await supabase.auth.updateUser({ password: cpPassword });
+        if (pErr) throw pErr;
+      }
+
+      setCpPassword('');
+      setCpConfirm('');
+      setShowChangePassModal(false);
+      Alert.alert('Success', wantToChangePassword ? 'Password updated successfully.' : 'Username updated successfully.');
+    } catch (e: any) {
+      setCpError(e?.message ?? 'Failed to update credentials.');
+    } finally {
+      setCpSaving(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -165,22 +254,28 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>
-                {loadingProfile ? 'Loading…' : profile.name || 'New User'}
+                Sambit Garnayak
               </Text>
               <Text style={styles.profileEmail}>
-                {loadingProfile ? '' : profile.email}
+                {'P.S to ' + profile.role}
               </Text>
               <Text style={styles.profileRole}>
-                {loadingProfile ? '' : (profile.role || 'staff')}
+                {loadingProfile ? 'Loading…' : profile.name || 'New User'}
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.editProfileButton}
-          // onPress={() => router.push('/(tabs)/settings/profile')}
-          >
-            <Text style={styles.editProfileText}>Edit Profile</Text>
-          </TouchableOpacity>
+
+          <View style={{ width: '95%', alignSelf: 'center', flexDirection: 'row', justifyContent: 'space-around' }}>
+            <View style={{ backgroundColor: '#1e40af', width: 60, height: 25, alignItems: 'center', justifyContent: 'center', borderRadius: 20 }}>
+              <Text style={{ fontSize: 13, color: '#fff', fontWeight: '800' }}>Works</Text>
+            </View>
+            <View style={{ backgroundColor: '#059669', width: 60, height: 25, alignItems: 'center', justifyContent: 'center', borderRadius: 20 }}>
+              <Text style={{ fontSize: 13, color: '#fff', fontWeight: '800' }}>Law</Text>
+            </View>
+            <View style={{ backgroundColor: '#f59e0b', width: 60, height: 25, alignItems: 'center', justifyContent: 'center', borderRadius: 20 }}>
+              <Text style={{ fontSize: 13, color: '#fff', fontWeight: '800' }}>Excise</Text>
+            </View>
+          </View>
         </View>
 
         {/* Settings Categories */}
@@ -200,19 +295,25 @@ export default function SettingsScreen() {
                     itemIndex === category.items.length - 1 && styles.lastSettingItem,
                   ]}
                   disabled={item.hasSwitch}
-                  // onPress={() => {
-                  //   if (item.hasArrow) {
-                  //     // route examples; adjust to your actual screens
-                  //     switch (item.id) {
-                  //       case 'password':
-                  //         router.push('/(auth)/change-password');
-                  //         break;
-                  //       default:
-                  //         // generic placeholder
-                  //         Alert.alert(item.title, 'Coming soon');
-                  //     }
-                  //   }
-                  // }}
+                  onPress={() => {
+                    if (item.hasArrow) {
+                      switch (item.id) {
+                        case 'password':
+                          setCpError('');
+                          const seed = profile.username ??
+                            (profile.email ? profile.email.split('@')[0] : cpUsername || 'user');
+                          setCpUsername(seed);
+                          setCpPassword('');
+                          setCpConfirm('');
+                          setShowPass(false);
+                          setShowConfirm(false);
+                          setShowChangePassModal(true);
+                          break;
+                        default:
+                          Alert.alert(item.title, 'Coming soon');
+                      }
+                    }
+                  }}
                 >
                   <View style={styles.settingContent}>
                     <Text style={styles.settingTitle}>{item.title}</Text>
@@ -237,9 +338,11 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>Minister Scheduling App</Text>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
-          <Text style={styles.copyrightText}>© 2025 Your Organization</Text>
+          <Text style={styles.appInfoText}>Ministerdesk</Text>
+          <Text style={styles.versionText}>version - 1.0.0</Text>
+          <Text style={styles.copyrightText}>
+            © {new Date().getFullYear()} Unitor Technology Pvt Ltd
+          </Text>
         </View>
 
         {/* Logout Button */}
@@ -257,28 +360,103 @@ export default function SettingsScreen() {
             {signingOut ? 'Signing out…' : 'Sign Out'}
           </Text>
         </TouchableOpacity>
-
-        {/* Quick Actions */}
-        {/* <View style={styles.quickActions}>
-          <Text style={styles.quickActionsTitle}>Quick Actions</Text>
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => Alert.alert('Export', 'Export data coming soon')}
-            >
-              <Mail size={20} color="#1e40af" />
-              <Text style={styles.actionButtonText}>Export Data</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => Alert.alert('Import', 'Import calendar coming soon')}
-            >
-              <Calendar size={20} color="#1e40af" />
-              <Text style={styles.actionButtonText}>Import Calendar</Text>
-            </TouchableOpacity>
-          </View>
-        </View> */}
       </ScrollView>
+
+      {/* 🔐 Change Password Modal */}
+      <Modal
+        visible={showChangePassModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowChangePassModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Update Credentials</Text>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Username</Text>
+              <TextInput
+                style={styles.input}
+                value={cpUsername}
+                onChangeText={setCpUsername}
+                autoCapitalize="none"
+                placeholder="Enter username"
+                placeholderTextColor="#9ca3af"
+              />
+              <Text style={styles.helpText}>You can change your username.</Text>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>New Password</Text>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={[styles.input, { paddingRight: 44 }]}
+                  value={cpPassword}
+                  onChangeText={setCpPassword}
+                  placeholder="Enter new password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showPass}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPass(p => !p)}
+                  style={styles.eyeBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  {showPass ? <EyeOff size={20} color="#6b7280" /> : <Eye size={20} color="#6b7280" />}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={[styles.input, { paddingRight: 44 }]}
+                  value={cpConfirm}
+                  onChangeText={setCpConfirm}
+                  placeholder="Re-enter new password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showConfirm}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirm(c => !c)}
+                  style={styles.eyeBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  {showConfirm ? <EyeOff size={20} color="#6b7280" /> : <Eye size={20} color="#6b7280" />}
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.helpText}>
+                Leave password fields empty to only update the username.
+              </Text>
+            </View>
+
+            {!!cpError && <Text style={styles.errorText}>{cpError}</Text>}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: '#f1f5f9', borderColor: '#e5e7eb' }]}
+                onPress={() => setShowChangePassModal(false)}
+                disabled={cpSaving}
+              >
+                <Text style={[styles.modalBtnText, { color: '#374151' }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: '#1e40af' }]}
+                onPress={handleSaveChangePassword}
+                disabled={cpSaving}
+              >
+                {cpSaving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -293,6 +471,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e2e8f0',
   },
   headerTitle: { fontSize: 28, fontWeight: '800', color: '#1f2937' },
+
   profileCard: {
     backgroundColor: '#ffffff',
     marginHorizontal: 20,
@@ -319,16 +498,7 @@ const styles = StyleSheet.create({
   profileName: { fontSize: 20, fontWeight: '700', color: '#1f2937', marginBottom: 4 },
   profileEmail: { fontSize: 14, color: '#6b7280', marginBottom: 2 },
   profileRole: { fontSize: 14, fontWeight: '500', color: '#1e40af' },
-  editProfileButton: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  editProfileText: { fontSize: 14, fontWeight: '600', color: '#1e40af' },
+
   settingsCategory: { marginBottom: 24 },
   categoryHeader: {
     flexDirection: 'row',
@@ -361,10 +531,12 @@ const styles = StyleSheet.create({
   settingContent: { flex: 1, marginRight: 12 },
   settingTitle: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 2 },
   settingSubtitle: { fontSize: 14, color: '#6b7280' },
+
   appInfo: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 20 },
   appInfoText: { fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 4 },
   versionText: { fontSize: 14, color: '#6b7280', marginBottom: 8 },
   copyrightText: { fontSize: 12, color: '#9ca3af' },
+
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,25 +556,56 @@ const styles = StyleSheet.create({
     borderColor: '#fecaca',
   },
   logoutText: { fontSize: 16, fontWeight: '600', color: '#dc2626' },
-  quickActions: { paddingHorizontal: 20, paddingBottom: 24 },
-  quickActionsTitle: { fontSize: 16, fontWeight: '700', color: '#374151', marginBottom: 12 },
-  actionsContainer: { flexDirection: 'row', gap: 12 },
-  actionButton: {
+
+  /* Modal */
+  modalOverlay: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingVertical: 16,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
-  actionButtonText: { fontSize: 14, fontWeight: '600', color: '#1e40af' },
+  modalCard: {
+    width: '100%',
+    maxWidth: 460,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 10 },
+  field: { marginBottom: 12 },
+  label: { fontSize: 13, fontWeight: '800', color: '#374151', marginBottom: 6 },
+
+  inputWrap: { position: 'relative' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#fff',
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 10,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  helpText: { fontSize: 12, color: '#6b7280', marginTop: 6 },
+  errorText: { color: '#dc2626', fontSize: 13, marginBottom: 6 },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  modalBtnText: { fontSize: 16, fontWeight: '800' },
 });

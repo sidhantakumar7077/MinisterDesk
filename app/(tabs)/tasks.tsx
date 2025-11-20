@@ -44,7 +44,7 @@ interface TodoItem {
 }
 
 const priorities: PriorityLocal[] = ['Low', 'Medium', 'High', 'Urgent'];
-const categories = ['Works Department', 'Law Department', 'Administrative', 'Personal'];
+const categories = ['Works', 'Law', 'Excise', 'Personal'];
 
 // DB <-> UI mapping
 function mapFromDB(row: any): TodoItem {
@@ -84,7 +84,7 @@ const formatFull = (d: Date) =>
 const getPriorityColor = (p: PriorityLocal) =>
   ({ Low: '#6b7280', Medium: '#1e40af', High: '#f59e0b', Urgent: '#ef4444' }[p]);
 const getCategoryColor = (c: string) =>
-  ({ 'Works Department': '#1e40af', 'Law Department': '#7c3aed', 'Administrative': '#059669', 'Personal': '#f59e0b' }[c] || '#6b7280');
+  ({ 'Works': '#1e40af', 'Law': '#7c3aed', 'Excise': '#059669', 'Personal': '#f59e0b' }[c] || '#6b7280');
 
 const showToast = (type: 'success' | 'error' | 'info', text1: string, text2?: string, onPress?: () => void) =>
   Toast.show({ type, text1, text2, position: 'bottom', onPress });

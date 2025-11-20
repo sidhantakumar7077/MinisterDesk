@@ -42,6 +42,7 @@ type MeetingRow = {
   is_recording: boolean;
   started_at?: string | null;
   ended_at?: string | null;
+  attendees?: string[] | null;
 };
 
 type Profile = {
@@ -73,14 +74,10 @@ const tourStatusColor: Record<'planned' | 'confirmed' | 'cancelled' | 'completed
 
 const getCategoryColor = (category?: string): string => {
   const colors: Record<string, string> = {
-    'Works Department': '#1e40af',
-    'Law Department': '#7c3aed',
-    'Joint Meeting': '#059669',
-    'Administrative': '#f59e0b',
-    'Official Visit': '#059669',
-    'District Visit': '#2563eb',
-    'Inspection Tour': '#7c3aed',
-    'Public Event': '#f59e0b',
+    'works': '#f59e0b',
+    'law': '#7c3aed',
+    'excise': '#1e40af',
+    'personal': '#ef4444'
   };
   return (category && colors[category]) || '#6b7280';
 };
@@ -94,6 +91,9 @@ const getPriorityColor = (p?: string) => {
   };
   return map[p ?? ''] || '#6b7280';
 };
+
+const getTaskCategoryColor = (c: string) =>
+  ({ 'Works': '#1e40af', 'Law': '#7c3aed', 'Excise': '#059669', 'Personal': '#f59e0b' }[c] || '#6b7280');
 
 const typeTagStyles = {
   meeting: { bg: '#e0ecff', fg: '#1e40af' },
@@ -545,7 +545,7 @@ export default function HomeScreen() {
                               <Text style={styles.meetingTitle}>{meeting.title}</Text>
                             </View>
                             <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(meeting.category ?? undefined) }]}>
-                              <Text style={styles.categoryText}>{meeting.category || 'General'}</Text>
+                              <Text style={styles.categoryText}>{meeting.category || ''}</Text>
                             </View>
                           </View>
 
@@ -571,6 +571,15 @@ export default function HomeScreen() {
                             <View style={styles.infoRow}>
                               <MapPin size={16} color="#6b7280" />
                               <Text style={styles.infoText}>{meeting.location}</Text>
+                            </View>
+                          )}
+
+                          {!!meeting.attendees && meeting.attendees.length > 0 && (
+                            <View style={styles.infoRow}>
+                              <Users size={16} color="#6b7280" />
+                              <Text style={styles.infoText}>
+                                {meeting.attendees.join(', ')}
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -621,7 +630,7 @@ export default function HomeScreen() {
                               </View>
                             )}
                             {!!t.category && (
-                              <View style={[styles.metaChipSoft, { backgroundColor: '#f3f4f6' }]}>
+                              <View style={[styles.metaChipSoft, { backgroundColor: getTaskCategoryColor(t.category) }]}>
                                 <Text style={[styles.metaChipSoftText]}>{t.category}</Text>
                               </View>
                             )}
@@ -686,8 +695,8 @@ export default function HomeScreen() {
 
                           <View style={styles.metaRowWrap}>
                             {!!tr.destination && (
-                              <View style={[styles.metaChipSoft, { backgroundColor: '#f3f4f6' }]}>
-                                <MapPin size={12} color="#6b7280" />
+                              <View style={[styles.metaChipSoft, { backgroundColor: '#033eb5ff' }]}>
+                                <MapPin size={12} color="#ebebebff" />
                                 <Text style={styles.metaChipSoftText}>{tr.destination}</Text>
                               </View>
                             )}
@@ -925,7 +934,7 @@ const styles = StyleSheet.create({
   statusChipText: { fontSize: 11, fontWeight: '900' },
 
   categoryBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  categoryText: { fontSize: 11, fontWeight: '900', color: '#fff' },
+  categoryText: { fontSize: 10, fontWeight: '900', color: '#fff', textTransform: 'capitalize' },
 
   desc: { fontSize: 14, color: '#475569', lineHeight: 20, marginBottom: 12 },
 
@@ -939,7 +948,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
     borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f8fafc'
   },
-  metaChipSoftText: { fontSize: 12, color: '#334155', fontWeight: '800' },
+  metaChipSoftText: { fontSize: 12, color: '#ffffffff', fontWeight: '800' },
 
   noResults: { alignItems: 'center', paddingVertical: 40 },
   noResultsEmoji: { fontSize: 44, marginBottom: 6 },

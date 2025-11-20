@@ -75,7 +75,7 @@ export default function CreateTaskModal({
             priority: (initialValues?.priority as Priority) ?? 'Medium',
             dueDate: initialValues?.dueDate ?? defaultDueDate ?? ymd(new Date()),
             // assignedTo: initialValues?.assignedTo ?? '',
-            category: initialValues?.category ?? 'Administrative',
+            category: initialValues?.category ?? 'Works',
         });
         setShowDuePicker(false);
     }, [visible, mode, initialValues, defaultDueDate]);

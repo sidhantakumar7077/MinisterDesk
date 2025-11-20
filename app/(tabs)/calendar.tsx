@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Calendar as CalendarIcon,
   ChevronLeft, ChevronRight,
@@ -28,7 +28,7 @@ type CalBase = {
   time?: string | null;
   category?: string | null;
   subtitle?: string | null;
-  status?: string | null; // for meetings/tours
+  status?: string | null; // for meetings/tours/tasks
 };
 
 type CalItem = CalBase & { type: 'meeting' | 'tour' | 'task' };
@@ -109,7 +109,7 @@ export default function CalendarScreen() {
       setErrorText('');
       const { from, to } = clampMonthRange(cursor);
 
-      // fetch meetings in month
+      // meetings in month
       const MEETINGS_COLUMNS = 'id,title,meeting_date,meeting_time,category,status,location';
       const { data: meetings, error: mErr } = await supabase
         .from('meetings')
@@ -118,8 +118,8 @@ export default function CalendarScreen() {
         .lte('meeting_date', to);
       if (mErr) throw mErr;
 
-      // fetch tasks in month
-      const TASKS_COLUMNS = 'id,title,due_date,priority,assigned_to';
+      // tasks in month (✅ include completed)
+      const TASKS_COLUMNS = 'id,title,due_date,priority,assigned_to,completed';
       const { data: tasks, error: tErr } = await supabase
         .from('tasks')
         .select(TASKS_COLUMNS)
@@ -127,7 +127,7 @@ export default function CalendarScreen() {
         .lte('due_date', to);
       if (tErr) throw tErr;
 
-      // fetch tours that START in this month (NOT spanning)
+      // tours that START this month
       const TOURS_COLUMNS = 'id,title,start_date,end_date,travel_mode,category,destination,status,estimated_budget';
       const { data: tours, error: tourErr } = await supabase
         .from('tour_plans')
@@ -142,7 +142,7 @@ export default function CalendarScreen() {
 
       const add = (dateKey: string, item: CalItem) => {
         const k = `${dateKey}|${item.type}|${item.id}`;
-        if (seen.has(k)) return;     // prevent double data
+        if (seen.has(k)) return;
         seen.add(k);
         if (!map[dateKey]) map[dateKey] = [];
         map[dateKey].push(item);
@@ -167,20 +167,20 @@ export default function CalendarScreen() {
           id: task.id,
           title: task.title,
           time: null,
-          category: task.priority || null,    // use priority as category chip
+          category: task.priority || null,                 // show priority as the colored tag
           subtitle: task.assigned_to ? `Assigned to ${task.assigned_to}` : 'Task',
+          status: task.completed ? 'completed' : 'pending', // ✅ status chip for tasks
           type: 'task',
         });
       });
 
-      // TOURS by start date only
       (tours || []).forEach((tr: any) => {
         const key = tr.start_date;
         add(key, {
           id: tr.id,
           title: tr.title,
           time: null,
-          category: tr.category || tr.travel_mode, // category chip
+          category: tr.category || tr.travel_mode,
           subtitle: tr.destination ? `→ ${tr.destination}` : 'Tour Plan',
           status: tr.status,
           type: 'tour',
@@ -196,10 +196,17 @@ export default function CalendarScreen() {
     }
   }
 
-  // Initial + month changes
+  // Initial fetch + when month changes
   useEffect(() => { fetchAll(); }, [cursor]);
 
-  // Realtime → just refetch; dedupe keeps it clean
+  // ✅ Refetch whenever this screen regains focus (e.g., after adding data elsewhere)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAll();
+    }, [cursor])
+  );
+
+  // Realtime → refetch; dedupe keeps it clean
   useEffect(() => {
     const chMeet = supabase
       .channel('rt-meetings')
@@ -265,7 +272,6 @@ export default function CalendarScreen() {
                 {cell.label}
               </Text>
 
-              {/* three dots max (typed colors), +N overflow */}
               {cnt > 0 && (
                 <View style={styles.dotRow}>
                   {itemsForDate(cell.date!).slice(0, 3).map((it, i) => (
@@ -368,11 +374,6 @@ export default function CalendarScreen() {
           <Text style={styles.dayHeaderText}>
             {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </Text>
-          <View style={styles.countPills}>
-            <View style={[styles.countPill, { backgroundColor: TYPE_COLOR.meeting }]}><Text style={styles.countPillText}>{(itemsForSelected.filter(i => i.type === 'meeting')).length} M</Text></View>
-            <View style={[styles.countPill, { backgroundColor: TYPE_COLOR.tour }]}><Text style={styles.countPillText}>{(itemsForSelected.filter(i => i.type === 'tour')).length} T</Text></View>
-            <View style={[styles.countPill, { backgroundColor: TYPE_COLOR.task }]}><Text style={styles.countPillText}>{(itemsForSelected.filter(i => i.type === 'task')).length} TK</Text></View>
-          </View>
         </View>
 
         {/* Items list */}
@@ -413,14 +414,15 @@ export default function CalendarScreen() {
                       {!!it.status && (
                         <View style={[styles.rowChip, { borderColor: TYPE_COLOR[it.type], backgroundColor: '#fff' }]}>
                           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: TYPE_COLOR[it.type] }} />
-                          <Text style={[styles.rowText, { color: TYPE_COLOR[it.type], fontWeight: '800' }]}>{String(it.status).toUpperCase()}</Text>
+                          <Text style={[styles.rowText, { color: TYPE_COLOR[it.type], fontWeight: '800' }]}>
+                            {String(it.status).toUpperCase()}
+                          </Text>
                         </View>
                       )}
                     </View>
 
                     {!!it.category && (
                       <View style={[styles.categoryTag, { backgroundColor: catColor }]}>
-                        {/* priority flag appears for tasks */}
                         {it.type === 'task' && <Flag size={12} color="#fff" />}
                         <Text style={styles.categoryText}>{it.category}</Text>
                       </View>
@@ -503,9 +505,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6
   },
   dayHeaderText: { fontSize: 15, fontWeight: '800', color: '#0f172a', flex: 1 },
-  countPills: { flexDirection: 'row', gap: 6 },
-  countPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  countPillText: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.4 },
 
   card: {
     backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 12, flexDirection: 'row', gap: 12,
