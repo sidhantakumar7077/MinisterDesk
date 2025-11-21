@@ -39,62 +39,16 @@ type SettingsCategory = {
 };
 
 const settingsData: SettingsCategory[] = [
-  // {
-  //   category: 'Profile',
-  //   icon: User,
-  //   items: [
-  //     { id: 'profile', title: 'Edit Profile', subtitle: 'Update your personal information', hasArrow: true },
-  //     { id: 'preferences', title: 'Preferences', subtitle: 'Customize your experience', hasArrow: true },
-  //   ],
-  // },
-  // {
-  //   category: 'Notifications',
-  //   icon: Bell,
-  //   items: [
-  //     { id: 'push', title: 'Push Notifications', subtitle: 'Receive meeting reminders', hasSwitch: true, enabled: true },
-  //     { id: 'email', title: 'Email Notifications', subtitle: 'Get updates via email', hasSwitch: true, enabled: false },
-  //     { id: 'sound', title: 'Sound Alerts', subtitle: 'Audio notifications for meetings', hasSwitch: true, enabled: true },
-  //   ],
-  // },
-  // {
-  //   category: 'Calendar',
-  //   icon: Calendar,
-  //   items: [
-  //     { id: 'sync', title: 'Calendar Sync', subtitle: 'Sync with device calendar', hasSwitch: true, enabled: true },
-  //     { id: 'reminders', title: 'Default Reminders', subtitle: '15 minutes before meetings', hasArrow: true },
-  //     { id: 'timezone', title: 'Time Zone', subtitle: 'India Standard Time (UTC+5:30)', hasArrow: true },
-  //   ],
-  // },
-  // {
-  //   category: 'Appearance',
-  //   icon: Moon,
-  //   items: [
-  //     { id: 'theme', title: 'Dark Mode', subtitle: 'Enable dark theme', hasSwitch: true, enabled: false },
-  //     { id: 'language', title: 'Language', subtitle: 'English', hasArrow: true },
-  //   ],
-  // },
   {
     category: 'Security',
     icon: Lock,
     items: [
       { id: 'password', title: 'Change Password', subtitle: 'Update your account password', hasArrow: true },
-      // { id: 'biometric', title: 'Biometric Login', subtitle: 'Use fingerprint or face ID', hasSwitch: true, enabled: false },
-      // { id: 'backup', title: 'Data Backup', subtitle: 'Backup your meetings and contacts', hasArrow: true },
     ],
   },
-  // {
-  //   category: 'Support',
-  //   icon: HelpCircle,
-  //   items: [
-  //     { id: 'help', title: 'Help Center', subtitle: 'Get help and support', hasArrow: true },
-  //     { id: 'feedback', title: 'Send Feedback', subtitle: 'Help us improve the app', hasArrow: true },
-  //     { id: 'about', title: 'About', subtitle: 'App version 1.0.0', hasArrow: true },
-  //   ],
-  // },
 ];
 
 export default function SettingsScreen() {
-
   const router = useRouter();
 
   const [profile, setProfile] = useState<Profile>({
@@ -128,6 +82,9 @@ export default function SettingsScreen() {
   // 👁️ visibility toggles
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // 🔓 Sign-out confirmation modal
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -195,9 +152,12 @@ export default function SettingsScreen() {
   // 🔐 Handle Save (username + password)
   const handleSaveChangePassword = async () => {
     if (cpSaving) return;
+
     setCpError('');
 
-    const wantToChangePassword = cpPassword.trim().length > 0 || cpConfirm.trim().length > 0;
+    const incomingUsername = cpUsername.trim();
+    const wantToChangePassword =
+      cpPassword.trim().length > 0 || cpConfirm.trim().length > 0;
 
     if (wantToChangePassword) {
       if (cpPassword.trim().length < 6) {
@@ -212,25 +172,53 @@ export default function SettingsScreen() {
 
     setCpSaving(true);
     try {
-      if (profile.id && cpUsername && cpUsername !== (profile.username ?? '')) {
+      // 1) Username update (case-insensitive uniqueness)
+      if (
+        profile.id &&
+        incomingUsername &&
+        incomingUsername !== (profile.username ?? '')
+      ) {
+        const { data: conflict, error: qErr } = await supabase
+          .from('users')
+          .select('id')
+          .neq('id', profile.id)
+          .ilike('username', incomingUsername)
+          .maybeSingle();
+        if (qErr) throw qErr;
+        if (conflict?.id) {
+          setCpError('That username is already taken (case-insensitive).');
+          setCpSaving(false);
+          return;
+        }
+
         const { error: uErr } = await supabase
           .from('users')
-          .update({ username: cpUsername })
+          .update({ username: incomingUsername })
           .eq('id', profile.id);
         if (uErr) throw uErr;
 
-        setProfile(prev => ({ ...prev, username: cpUsername }));
+        setProfile(prev => ({ ...prev, username: incomingUsername }));
       }
 
+      // 2) Password update if requested
       if (wantToChangePassword) {
         const { error: pErr } = await supabase.auth.updateUser({ password: cpPassword });
         if (pErr) throw pErr;
       }
 
+      // 3) Finish
       setCpPassword('');
       setCpConfirm('');
       setShowChangePassModal(false);
-      Alert.alert('Success', wantToChangePassword ? 'Password updated successfully.' : 'Username updated successfully.');
+
+      Alert.alert(
+        'Success',
+        wantToChangePassword
+          ? 'Password updated successfully.'
+          : incomingUsername !== (profile.username ?? '')
+            ? 'Username updated successfully.'
+            : 'Nothing to update.'
+      );
     } catch (e: any) {
       setCpError(e?.message ?? 'Failed to update credentials.');
     } finally {
@@ -252,10 +240,8 @@ export default function SettingsScreen() {
             <View style={styles.avatarContainer}>
               <User size={32} color="#ffffff" />
             </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>
-                Sambit Garnayak
-              </Text>
+            <View className="profileInfo" style={styles.profileInfo}>
+              <Text style={styles.profileName}>Sambit Garnayak</Text>
               <Text style={styles.profileEmail}>
                 {'P.S to ' + profile.role}
               </Text>
@@ -345,10 +331,10 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
-        {/* Logout Button */}
+        {/* Logout Button - opens confirm modal */}
         <TouchableOpacity
           style={styles.logoutButton}
-          onPress={handleLogout}
+          onPress={() => setShowSignOutModal(true)}
           disabled={signingOut}
         >
           {signingOut ? (
@@ -451,6 +437,48 @@ export default function SettingsScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔓 Sign-out confirmation modal */}
+      <Modal
+        visible={showSignOutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSignOutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Sign out?</Text>
+            <Text style={{ color: '#6b7280', marginBottom: 12 }}>
+              You’ll need to log in again to access your account.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: '#f1f5f9', borderColor: '#e5e7eb' }]}
+                onPress={() => setShowSignOutModal(false)}
+                disabled={signingOut}
+              >
+                <Text style={[styles.modalBtnText, { color: '#374151' }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: '#dc2626' }]}
+                onPress={async () => {
+                  await handleLogout();
+                  setShowSignOutModal(false);
+                }}
+                disabled={signingOut}
+              >
+                {signingOut ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={[styles.modalBtnText, { color: '#fff' }]}>Sign Out</Text>
                 )}
               </TouchableOpacity>
             </View>

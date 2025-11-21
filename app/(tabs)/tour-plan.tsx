@@ -83,6 +83,10 @@ export default function TourPlanScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
 
+  // Delete confirmation modal
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<TourPlan | null>(null);
+
   // For Undo delete
   const lastDeletedRef = useRef<TourPlan | null>(null);
 
@@ -207,20 +211,14 @@ export default function TourPlanScreen() {
     showToast('success', 'Tour updated');
   }
 
-  async function deleteTour(id: string) {
-    const { error } = await supabase.from('tour_plans').delete().eq('id', id);
-    if (error) {
-      showToast('error', 'Delete failed', error.message);
-      return;
-    }
-    fetchTours();
-  }
-
   // Delete action with Undo (no Alert)
+  // ✅ Fixed undo logic (no undefined id; clean payload)
   const handleDeleteWithUndo = async (t: TourPlan) => {
     lastDeletedRef.current = t;
+
     // Optimistic remove
     setTours(prev => prev.filter(x => x.id !== t.id));
+
     const { error } = await supabase.from('tour_plans').delete().eq('id', t.id);
     if (error) {
       // rollback
@@ -228,26 +226,32 @@ export default function TourPlanScreen() {
       showToast('error', 'Delete failed', error.message);
       return;
     }
+
     showToast('info', 'Tour deleted', 'Tap to undo', async () => {
-      if (!lastDeletedRef.current) return;
-      const payload = {
-        ...lastDeletedRef.current,
-        created_at: undefined,
-        updated_at: undefined,
-        id: undefined as unknown as string, // let DB assign id
-      };
-      const { error: insErr, data } = await supabase
-        .from('tour_plans')
-        .insert([payload as any])
-        .select('*')
-        .single();
-      if (insErr) {
-        showToast('error', 'Undo failed', insErr.message);
-      } else {
+      const deleted = lastDeletedRef.current;
+      if (!deleted) return;
+
+      // Strip read-only fields; keep the same id so relations remain intact
+      const { created_at, updated_at, ...rest } = deleted;
+
+      try {
+        const { data, error: insErr } = await supabase
+          .from('tour_plans')
+          .insert([rest]) // rest includes the original id
+          .select('*')
+          .single();
+
+        if (insErr) throw insErr;
+
         setTours(prev => [data as TourPlan, ...prev]);
         showToast('success', 'Restored');
+      } catch (e: any) {
+        // If your RLS policy blocks this insert, you'll see the policy error here.
+        // In that case ensure your INSERT policy allows the current user to insert with the same created_by.
+        showToast('error', 'Undo failed', e?.message);
+      } finally {
+        lastDeletedRef.current = null;
       }
-      lastDeletedRef.current = null;
     });
   };
 
@@ -402,27 +406,6 @@ export default function TourPlanScreen() {
                 )}
               </View>
 
-              {/* <TouchableOpacity
-                style={styles.expandButton}
-                onPress={() => setExpandedTour(expandedTour === tour.id ? null : tour.id)}
-              >
-                <Text style={styles.expandButtonText}>
-                  {expandedTour === tour.id ? 'Show Less' : 'Show More Details'}
-                </Text>
-                {expandedTour === tour.id ? <ChevronUp size={16} color="#1e40af" /> : <ChevronDown size={16} color="#1e40af" />}
-              </TouchableOpacity>
-
-              {expandedTour === tour.id && (
-                <View style={styles.expandedContent}>
-                  {!!tour.accompanied_by?.length && (
-                    <View style={styles.expandedSection}>
-                      <Text style={styles.expandedSectionTitle}>Accompanying Team</Text>
-                      <Text style={styles.expandedText}>{tour.accompanied_by.join(', ')}</Text>
-                    </View>
-                  )}
-                </View>
-              )} */}
-
               <View style={styles.tourActions}>
                 <TouchableOpacity style={styles.editButton} onPress={() => openEdit(tour)}>
                   <Edit size={16} color="#059669" />
@@ -430,7 +413,10 @@ export default function TourPlanScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.editButton, { backgroundColor: '#fff0f0', borderColor: '#fecaca' }]}
-                  onPress={() => handleDeleteWithUndo(tour)}
+                  onPress={() => {
+                    setPendingDelete(tour);
+                    setConfirmVisible(true);
+                  }}
                 >
                   <Trash2 size={16} color="#dc2626" />
                   <Text style={[styles.editButtonText, { color: '#dc2626' }]}>Delete</Text>
@@ -569,6 +555,38 @@ export default function TourPlanScreen() {
         categories={categories}
       />
 
+      {/* 🔴 Delete confirmation modal */}
+      <Modal visible={confirmVisible} transparent animationType="fade">
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete this tour?</Text>
+            <Text style={styles.confirmText}>
+              {pendingDelete ? `“${pendingDelete.title}” will be removed. You can undo from the toast right after.` : ''}
+            </Text>
+
+            <View style={styles.confirmRow}>
+              <TouchableOpacity
+                style={styles.confirmCancelBtn}
+                onPress={() => { setConfirmVisible(false); setPendingDelete(null); }}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmDeleteBtn}
+                onPress={async () => {
+                  if (pendingDelete) await handleDeleteWithUndo(pendingDelete);
+                  setConfirmVisible(false);
+                  setPendingDelete(null);
+                }}
+              >
+                <Text style={styles.confirmDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Toast portal */}
       <Toast />
     </SafeAreaView>
@@ -680,4 +698,26 @@ const styles = StyleSheet.create({
     borderRadius: 10, backgroundColor: '#e0ecff', gap: 8, borderWidth: 1, borderColor: '#c7d2fe'
   },
   createFirstButtonText: { fontSize: 14, fontWeight: '900', color: '#1e3a8a' },
+
+  /* Confirm delete modal */
+  confirmOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center'
+  },
+  confirmCard: {
+    width: '90%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 16, padding: 18,
+    shadowColor: '#000', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 16, elevation: 12
+  },
+  confirmTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a', marginBottom: 8 },
+  confirmText: { fontSize: 14, color: '#475569', marginBottom: 16 },
+  confirmRow: { flexDirection: 'row', gap: 10 },
+  confirmCancelBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#f1f5f9',
+    alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb'
+  },
+  confirmCancelText: { fontSize: 14, fontWeight: '800', color: '#0f172a' },
+  confirmDeleteBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#fee2e2',
+    alignItems: 'center', borderWidth: 1, borderColor: '#fecaca'
+  },
+  confirmDeleteText: { fontSize: 14, fontWeight: '900', color: '#dc2626' },
 });

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../config';
 
 export default function Login() {
@@ -27,14 +27,12 @@ export default function Login() {
     async function handleLogin() {
         if (loading) return;
 
-        // reset UI state
         setErrorText('');
-        const uname = username.trim();
+        const raw = username.trim();
         const pwd = password;
 
-        // quick client validation
-        if (!uname) {
-            setErrorText('Enter your username.');
+        if (!raw) {
+            setErrorText('Enter your username or email.');
             return;
         }
         if (pwd.length < 6) {
@@ -44,23 +42,31 @@ export default function Login() {
 
         setLoading(true);
         try {
-            // 1) Resolve email from username via secure RPC
-            const { data: email, error: rpcErr } = await supabase.rpc('get_email_for_username', {
-                u: uname,
-            });
-            if (rpcErr) throw rpcErr;
-            if (typeof email !== 'string' || email.length === 0) {
-                throw new Error('Invalid username or password.');
+            // If the input looks like an email, use it directly.
+            const looksLikeEmail = raw.includes('@');
+
+            let email: string | null = null;
+
+            if (looksLikeEmail) {
+                email = raw;
+            } else {
+                // Case-insensitive username → email via RPC (lower() inside SQL)
+                const { data: rpcEmail, error: rpcErr } = await supabase.rpc('get_email_for_username', {
+                    u: raw, // keep original; RPC handles lower/trim
+                });
+                if (rpcErr) throw rpcErr;
+                if (typeof rpcEmail !== 'string' || rpcEmail.length === 0) {
+                    throw new Error('Invalid username or password.');
+                }
+                email = rpcEmail;
             }
 
-            // 2) Sign in with email + password (session is created by Supabase Auth)
             const { data, error } = await supabase.auth.signInWithPassword({
-                email,
+                email: email!,
                 password: pwd,
             });
 
             if (error) {
-                // Normalize common auth errors to a friendly message
                 const m = (error.message || '').toLowerCase();
                 if (
                     m.includes('invalid login') ||
@@ -75,12 +81,7 @@ export default function Login() {
                 throw error;
             }
 
-            if (!data?.session) {
-                // Very rare: API returned without a session
-                throw new Error('Login failed. Please try again.');
-            }
-
-            // 3) Success → go to app
+            if (!data?.session) throw new Error('Login failed. Please try again.');
             router.replace('/');
         } catch (err: any) {
             setErrorText(err?.message ?? 'Unable to sign in.');
@@ -101,18 +102,18 @@ export default function Login() {
                         Welcome
                     </Text>
                     <Text style={{ fontSize: 13, color: '#475569', textAlign: 'center', marginTop: 6 }}>
-                        Sign in with username & password
+                        Sign in with username (any case) or email
                     </Text>
 
                     <Text style={{ fontSize: 13, color: '#334155', marginTop: 18, marginBottom: 8 }}>
-                        Username
+                        Username or Email
                     </Text>
                     <TextInput
                         value={username}
                         onChangeText={(v) => { setUsername(v); if (errorText) setErrorText(''); }}
                         autoCapitalize="none"
                         autoComplete="username"
-                        placeholder="yourname"
+                        placeholder="yourname or you@example.com"
                         placeholderTextColor="#94a3b8"
                         style={{
                             borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#fff',
@@ -160,10 +161,6 @@ export default function Login() {
                         {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Sign In</Text>}
                     </TouchableOpacity>
                 </View>
-
-                {/* <Text style={{ textAlign: 'center', marginTop: 16, color: '#cbd5e1' }}>
-                    By continuing, you agree to our Terms & Privacy Policy.
-                </Text> */}
             </View>
         </View>
     );
