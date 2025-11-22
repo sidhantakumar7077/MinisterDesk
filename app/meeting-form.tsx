@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, Alert } from 'react-native';
-import { ArrowLeft, User, Building, Calendar, Clock, Users, FileText, MapPin, Phone, Mail, Send, CircleCheck as CheckCircle } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, Building, Calendar, CircleCheck as CheckCircle, Clock, FileText, Mail, MapPin, Phone, Send, User, Users } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const priorityLevels = ['Low', 'Medium', 'High', 'Urgent'];
 const meetingTypes = ['Official Meeting', 'Courtesy Call', 'Project Discussion', 'Budget Review', 'Policy Discussion', 'Emergency Meeting'];

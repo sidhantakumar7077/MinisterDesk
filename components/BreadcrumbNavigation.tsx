@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronRight, Home } from 'lucide-react-native';
 import { router, usePathname } from 'expo-router';
+import { ChevronRight, Home } from 'lucide-react-native';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface BreadcrumbItem {
   label: string;
@@ -31,6 +31,7 @@ export default function BreadcrumbNavigation() {
       '/meeting-requests': 'Meeting Requests',
       '/meeting-request': 'New Meeting Request',
       '/meeting-form': 'Meeting Form',
+      '/CreateTourPlanModal': 'New Tour Plan',
       '/tenders': 'Tenders',
     };
 

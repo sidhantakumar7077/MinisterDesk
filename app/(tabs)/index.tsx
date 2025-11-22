@@ -19,12 +19,7 @@ import Toast from 'react-native-toast-message';
 import { supabase } from '../config';
 // ✅ reusable modals
 import CreateTaskModal, { CreateTaskForm } from '../CreateTaskModal';
-import CreateTourPlanModal, { TourPlanForm } from '../CreateTourPlanModal';
-// For Notification
-// import * as Notifications from 'expo-notifications';
-// import { AppState } from 'react-native';
-// import { ensureAndroidChannel } from '../notifications-setup';
-// import { scheduleUpcomingAlarms } from '../utils/alarms';
+// import { TourPlanForm } from '../CreateTourPlanModal';
 
 /* -------------------- Types -------------------- */
 type MeetingRow = {
@@ -122,15 +117,11 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // local overlay (if you overlay edits)
   const [localState, setLocalState] = useState<Record<string, Partial<MeetingRow>>>({});
-
-  // null = show all today's lists; otherwise filter to one list
   const [selectedFilter, setSelectedFilter] = useState<'meetings' | 'tasks' | 'tours' | null>(null);
 
   // Modals
   const [taskModalVisible, setTaskModalVisible] = useState(false);
-  const [tourModalVisible, setTourModalVisible] = useState(false);
 
   /* -------------------- Fetch -------------------- */
   const fetchAll = async () => {
@@ -152,9 +143,6 @@ export default function HomeScreen() {
     setMeetingList(meetings);
     setTasks(tasks);
     setTours(tours);
-
-    // ↓ schedule alarms for items starting within 15 minutes
-    // await scheduleUpcomingAlarms({ meetings, tasks, tours });
 
     setLoading(false);
     setRefreshing(false);
@@ -204,41 +192,6 @@ export default function HomeScreen() {
     return () => sub.remove();
   }, []);
 
-  // For Notification
-  // useEffect(() => {
-  //   (async () => {
-  //     await ensureAndroidChannel();
-  //     const { status } = await Notifications.getPermissionsAsync();
-  //     if (status !== 'granted') {
-  //       await Notifications.requestPermissionsAsync();
-  //     }
-  //   })();
-  // }, []);
-
-  // useEffect(() => {
-  //   let interval: any;
-  //   const onChange = (state: string) => {
-  //     if (state === 'active') {
-  //       // check every 60s
-  //       interval = setInterval(() => {
-  //         scheduleUpcomingAlarms({
-  //           meetings: meetingList,
-  //           tasks,
-  //           tours,
-  //         });
-  //       }, 60_000);
-  //     } else {
-  //       if (interval) clearInterval(interval);
-  //     }
-  //   };
-  //   const sub = AppState.addEventListener('change', onChange);
-  //   onChange('active');
-  //   return () => {
-  //     sub.remove();
-  //     if (interval) clearInterval(interval);
-  //   };
-  // }, [meetingList, tasks, tours]);
-
   /* -------------------- Today helpers & counts -------------------- */
   const todayYMD = useMemo(() => {
     const d = new Date(); const y = d.getFullYear();
@@ -286,7 +239,6 @@ export default function HomeScreen() {
         description: form.description ?? null,
         priority: form.priority,
         due_date: form.dueDate ?? todayYMD,     // DB column
-        // assigned_to: form.assignedTo ?? null,
         category: form.category,
       };
 
@@ -307,48 +259,6 @@ export default function HomeScreen() {
       setTaskModalVisible(false);
     } catch (e: any) {
       showToast('error', 'Error', e?.message ?? 'Failed to create task');
-    }
-  };
-
-  /* -------------------- Tour modal handlers -------------------- */
-  const openCreateTour = () => setTourModalVisible(true);
-
-  const handleCreateTourSubmit = async (form: TourPlanForm) => {
-    try {
-      const body = {
-        title: form.title.trim(),
-        destination: form.destination.trim(),
-        start_date: form.startDate || todayYMD,
-        end_date: form.endDate || form.startDate || todayYMD,
-        start_time: form.startTime || null,
-        end_time: form.endTime || null,
-        purpose: form.purpose || null,
-        travel_mode: form.travelMode,
-        status: 'planned' as const,
-        category: form.category || null,
-        // estimated_budget: form.estimatedBudget || null,
-        accompanied_by: form.accompaniedBy ? form.accompaniedBy.split(',').map(s => s.trim()).filter(Boolean) : null,
-        // accommodation: form.accommodation || null,
-        // special_requirements: form.specialRequirements || null,
-        created_by: (await supabase.auth.getUser()).data.user?.id ?? null,
-      };
-
-      if ((body.start_date ?? todayYMD) === todayYMD) {
-        const tempId = `temp-tour-${Date.now()}`;
-        setTours((prev) => [{ id: tempId, ...body }, ...prev]);
-      }
-
-      const { error } = await supabase.from('tour_plans').insert([body]);
-      if (error) {
-        showToast('error', 'Could not create tour', error.message);
-      } else {
-        showToast('success', 'Tour plan created');
-      }
-
-      await fetchAll();
-      setTourModalVisible(false);
-    } catch (e: any) {
-      showToast('error', 'Error', e?.message ?? 'Failed to create tour plan');
     }
   };
 
@@ -378,7 +288,6 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            {/* <Text style={styles.kicker}>Welcome back,</Text> */}
             <Text style={styles.userName}>Sambit Garnayak</Text>
             <View style={styles.roleRow}>
               <Text style={styles.userRole}>P.S. to {profile.role}</Text>
@@ -386,19 +295,6 @@ export default function HomeScreen() {
               <Text style={styles.signature}>{profile.name}</Text>
             </View>
           </View>
-
-          {/* <View style={styles.rightHeader}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarTxt}>{initials || 'NU'}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.notificationButton}
-              onPress={() => showToast('info', 'No new notifications')}
-            >
-              <Bell size={22} color="#1e3a8a" />
-              <View style={styles.notificationBadge}><Text style={styles.notificationCount}>3</Text></View>
-            </TouchableOpacity>
-          </View> */}
         </View>
 
         {/* Filter Chips */}
@@ -480,7 +376,8 @@ export default function HomeScreen() {
             <EmptyState />
           )}
 
-          {selectedFilter === 'meetings' && !(todaysMeetings.length > 0) && (
+          {/* 🔧 FIX: use correct lists for empty states */}
+          {selectedFilter === 'meetings' && todaysMeetings.length === 0 && (
             <View style={styles.noResults}>
               <LinearGradient colors={['#f8fafc', '#eef2ff']} style={styles.emptyGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <Text style={styles.noResultsEmoji}>🎉</Text>
@@ -490,7 +387,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {selectedFilter === 'tasks' && !(todaysMeetings.length > 0) && (
+          {selectedFilter === 'tasks' && todaysTasks.length === 0 && (
             <View style={styles.noResults}>
               <LinearGradient colors={['#f8fafc', '#eef2ff']} style={styles.emptyGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <Text style={styles.noResultsEmoji}>🎉</Text>
@@ -500,7 +397,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {selectedFilter === 'tours' && !(todaysMeetings.length > 0) && (
+          {selectedFilter === 'tours' && todaysTours.length === 0 && (
             <View style={styles.noResults}>
               <LinearGradient colors={['#f8fafc', '#eef2ff']} style={styles.emptyGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <Text style={styles.noResultsEmoji}>🎉</Text>
@@ -706,11 +603,6 @@ export default function HomeScreen() {
                                 <Text style={[styles.metaChipSoftText, { color: '#4f46e5' }]}>{tr.travel_mode}</Text>
                               </View>
                             )}
-                            {/* {!!tr.estimated_budget && (
-                              <View style={[styles.metaChipSoft, { backgroundColor: '#ecfeff', borderColor: '#a5f3fc', borderWidth: 1 }]}>
-                                <Text style={[styles.metaChipSoftText, { color: '#0e7490' }]}>{tr.estimated_budget}</Text>
-                              </View>
-                            )} */}
                           </View>
 
                           {when ? (
@@ -753,7 +645,7 @@ export default function HomeScreen() {
           <ActionButton
             label="New Tour"
             icon={<FileText size={18} color="#ffffff" />}
-            onPress={() => setTourModalVisible(true)}
+            onPress={() => router.push('/CreateTourPlanModal')}
           />
         </View>
       </View>
@@ -765,14 +657,6 @@ export default function HomeScreen() {
         onClose={() => setTaskModalVisible(false)}
         onSubmit={handleCreateTaskSubmit}
         defaultDueDate={todayYMD}
-      />
-
-      {/* Reusable Create/Edit Tour Modal — CREATE mode */}
-      <CreateTourPlanModal
-        visible={tourModalVisible}
-        mode="create"
-        onClose={() => setTourModalVisible(false)}
-        onSubmit={handleCreateTourSubmit}
       />
 
       {/* Toast portal */}
@@ -848,23 +732,11 @@ const styles = StyleSheet.create({
   headerWrap: { paddingBottom: 10, paddingTop: 8, paddingHorizontal: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerContent: { flex: 1, paddingRight: 12 },
-  kicker: { fontSize: 12, color: '#64748b', fontWeight: '700', letterSpacing: 0.3 },
   userName: { fontSize: 22, fontWeight: '900', color: '#0f172a', marginTop: 2 },
   roleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   userRole: { fontSize: 12, color: '#64748b', fontWeight: '700' },
   dividerDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', marginHorizontal: 8 },
   signature: { fontSize: 12, color: '#111827', fontWeight: '800' },
-
-  rightHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#e0ecff',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#c7d2fe'
-  },
-  avatarTxt: { fontSize: 14, fontWeight: '900', color: '#1e3a8a' },
-
-  notificationButton: { position: 'relative', width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0' },
-  notificationBadge: { position: 'absolute', top: 4, right: 4, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center' },
-  notificationCount: { fontSize: 10, fontWeight: '800', color: '#ffffff' },
 
   /* chips */
   filterChips: { flexDirection: 'row', gap: 8, marginTop: 12 },
@@ -883,7 +755,6 @@ const styles = StyleSheet.create({
   /* stats (modern) */
   statsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   statCardModern: {
-    // flex: 1,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 12,

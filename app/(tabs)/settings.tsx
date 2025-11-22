@@ -324,11 +324,11 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>Ministerdesk</Text>
+          <Text style={styles.appInfoText}>Minister Desk</Text>
           <Text style={styles.versionText}>version - 1.0.0</Text>
-          <Text style={styles.copyrightText}>
+          {/* <Text style={styles.copyrightText}>
             © {new Date().getFullYear()} Unitor Technology Pvt Ltd
-          </Text>
+          </Text> */}
         </View>
 
         {/* Logout Button - opens confirm modal */}
@@ -356,7 +356,14 @@ export default function SettingsScreen() {
         onRequestClose={() => setShowChangePassModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={{
+            width: '100%',
+            top: '10%',
+            maxWidth: 460,
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            padding: 16,
+          }}>
             <Text style={styles.modalTitle}>Update Credentials</Text>
 
             <View style={styles.field}>
@@ -589,12 +596,13 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
+    // justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
   modalCard: {
     width: '100%',
+    top: '40%',
     maxWidth: 460,
     backgroundColor: '#fff',
     borderRadius: 16,

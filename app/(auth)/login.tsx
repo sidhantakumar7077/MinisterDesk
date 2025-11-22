@@ -1,6 +1,19 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+    ActivityIndicator,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
+} from 'react-native';
 import { supabase } from '../config';
 
 export default function Login() {
@@ -42,18 +55,14 @@ export default function Login() {
 
         setLoading(true);
         try {
-            // If the input looks like an email, use it directly.
             const looksLikeEmail = raw.includes('@');
-
             let email: string | null = null;
 
             if (looksLikeEmail) {
                 email = raw;
             } else {
                 // Case-insensitive username → email via RPC (lower() inside SQL)
-                const { data: rpcEmail, error: rpcErr } = await supabase.rpc('get_email_for_username', {
-                    u: raw, // keep original; RPC handles lower/trim
-                });
+                const { data: rpcEmail, error: rpcErr } = await supabase.rpc('get_email_for_username', { u: raw });
                 if (rpcErr) throw rpcErr;
                 if (typeof rpcEmail !== 'string' || rpcEmail.length === 0) {
                     throw new Error('Invalid username or password.');
@@ -68,11 +77,7 @@ export default function Login() {
 
             if (error) {
                 const m = (error.message || '').toLowerCase();
-                if (
-                    m.includes('invalid login') ||
-                    m.includes('invalid_grant') ||
-                    m.includes('email or password')
-                ) {
+                if (m.includes('invalid login') || m.includes('invalid_grant') || m.includes('email or password')) {
                     throw new Error('Invalid username or password.');
                 }
                 if (m.includes('email not confirmed')) {
@@ -90,78 +95,196 @@ export default function Login() {
         }
     }
 
+    const keyboardVerticalOffset = 0;
+
     return (
-        <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-            {/* blobs */}
-            <View style={{ position: 'absolute', top: -120, left: -60, width: 260, height: 260, borderRadius: 130, backgroundColor: '#1e40af', opacity: 0.15 }} />
-            <View style={{ position: 'absolute', top: -60, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: '#2563eb', opacity: 0.12 }} />
+        <View style={{ flex: 1, backgroundColor: '#ea580c' /* orange-600 */ }}>
+            {/* orange blobs */}
+            <View
+                style={{
+                    position: 'absolute',
+                    top: -120,
+                    left: -60,
+                    width: 260,
+                    height: 260,
+                    borderRadius: 130,
+                    backgroundColor: '#7c2d12',
+                    opacity: 0.18,
+                }}
+            />
+            <View
+                style={{
+                    position: 'absolute',
+                    top: -60,
+                    right: -40,
+                    width: 180,
+                    height: 180,
+                    borderRadius: 90,
+                    backgroundColor: '#7c2d12',
+                    opacity: 0.16,
+                }}
+            />
 
-            <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
-                <View style={{ backgroundColor: '#ffffff', borderRadius: 20, padding: 20, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 20, elevation: 4 }}>
-                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#0f172a', textAlign: 'center' }}>
-                        Welcome
-                    </Text>
-                    <Text style={{ fontSize: 13, color: '#475569', textAlign: 'center', marginTop: 6 }}>
-                        Sign in with username (any case) or email
-                    </Text>
-
-                    <Text style={{ fontSize: 13, color: '#334155', marginTop: 18, marginBottom: 8 }}>
-                        Username or Email
-                    </Text>
-                    <TextInput
-                        value={username}
-                        onChangeText={(v) => { setUsername(v); if (errorText) setErrorText(''); }}
-                        autoCapitalize="none"
-                        autoComplete="username"
-                        placeholder="yourname or you@example.com"
-                        placeholderTextColor="#94a3b8"
-                        style={{
-                            borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#fff',
-                            borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-                            fontSize: 16, color: '#0f172a',
-                        }}
-                    />
-
-                    <Text style={{ fontSize: 13, color: '#334155', marginTop: 14, marginBottom: 8 }}>
-                        Password
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <TextInput
-                            value={password}
-                            onChangeText={(v) => { setPassword(v); if (errorText) setErrorText(''); }}
-                            secureTextEntry={!showPw}
-                            autoCapitalize="none"
-                            autoComplete="password"
-                            placeholder="••••••••"
-                            placeholderTextColor="#94a3b8"
-                            style={{
-                                flex: 1, borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#fff',
-                                borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-                                fontSize: 16, color: '#0f172a',
-                            }}
-                        />
-                        <TouchableOpacity onPress={() => setShowPw((s) => !s)} style={{ marginLeft: 10, padding: 8 }}>
-                            <Text style={{ color: '#1e40af', fontWeight: '700' }}>{showPw ? 'Hide' : 'Show'}</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {!!errorText && <Text style={{ color: '#b91c1c', marginTop: 8 }}>{errorText}</Text>}
-
-                    <TouchableOpacity
-                        onPress={handleLogin}
-                        disabled={!canLogin}
-                        style={{
-                            marginTop: 16,
-                            backgroundColor: canLogin ? '#1e40af' : '#94a3b8',
-                            paddingVertical: 14,
-                            borderRadius: 14,
-                            alignItems: 'center',
-                        }}
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={keyboardVerticalOffset}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <ScrollView
+                        contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: 'center' }}
+                        keyboardShouldPersistTaps="handled"
                     >
-                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Sign In</Text>}
-                    </TouchableOpacity>
-                </View>
-            </View>
+                        {/* Card */}
+                        <View
+                            style={{
+                                backgroundColor: '#ffffff',
+                                borderRadius: 20,
+                                padding: 20,
+                                shadowColor: '#000',
+                                shadowOpacity: 0.08,
+                                shadowRadius: 20,
+                                elevation: 4,
+                            }}
+                        >
+                            <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827', textAlign: 'center' }}>
+                                Welcome
+                            </Text>
+                            <Text style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', marginTop: 6 }}>
+                                Sign in with username (any case) or email
+                            </Text>
+
+                            {/* Username */}
+                            <Text style={{ fontSize: 13, color: '#374151', marginTop: 18, marginBottom: 8 }}>
+                                Username or Email
+                            </Text>
+                            <TextInput
+                                value={username}
+                                onChangeText={(v) => {
+                                    setUsername(v);
+                                    if (errorText) setErrorText('');
+                                }}
+                                autoCapitalize="none"
+                                autoComplete="username"
+                                placeholder="yourname or you@example.com"
+                                placeholderTextColor="#a3a3a3"
+                                style={{
+                                    borderWidth: 1,
+                                    borderColor: '#fca5a5',
+                                    backgroundColor: '#fff7ed',
+                                    borderRadius: 12,
+                                    paddingHorizontal: 14,
+                                    paddingVertical: 12,
+                                    fontSize: 16,
+                                    color: '#111827',
+                                }}
+                                returnKeyType="next"
+                                blurOnSubmit={false}
+                            />
+
+                            {/* Password */}
+                            <Text style={{ fontSize: 13, color: '#374151', marginTop: 14, marginBottom: 8 }}>
+                                Password
+                            </Text>
+                            <View style={{ position: 'relative' }}>
+                                <TextInput
+                                    value={password}
+                                    onChangeText={(v) => {
+                                        setPassword(v);
+                                        if (errorText) setErrorText('');
+                                    }}
+                                    secureTextEntry={!showPw}
+                                    autoCapitalize="none"
+                                    autoComplete="password"
+                                    placeholder="••••••••"
+                                    placeholderTextColor="#a3a3a3"
+                                    style={{
+                                        borderWidth: 1,
+                                        borderColor: '#fca5a5',
+                                        backgroundColor: '#fff7ed',
+                                        borderRadius: 12,
+                                        paddingHorizontal: 14,
+                                        paddingVertical: 12,
+                                        fontSize: 16,
+                                        color: '#111827',
+                                        paddingRight: 44, // room for eye icon
+                                    }}
+                                    returnKeyType="done"
+                                    onSubmitEditing={handleLogin}
+                                />
+                                <TouchableOpacity
+                                    onPress={() => setShowPw((s) => !s)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={showPw ? 'Hide password' : 'Show password'}
+                                    style={{
+                                        position: 'absolute',
+                                        right: 10,
+                                        top: 0,
+                                        bottom: 0,
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        paddingHorizontal: 6,
+                                    }}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    {showPw ? <EyeOff size={20} color="#6b7280" /> : <Eye size={20} color="#6b7280" />}
+                                </TouchableOpacity>
+                            </View>
+
+                            {!!errorText && <Text style={{ color: '#b91c1c', marginTop: 8 }}>{errorText}</Text>}
+
+                            <TouchableOpacity
+                                onPress={handleLogin}
+                                disabled={!canLogin}
+                                style={{
+                                    marginTop: 16,
+                                    backgroundColor: canLogin ? '#ea580c' : '#f59e0b',
+                                    paddingVertical: 14,
+                                    borderRadius: 14,
+                                    alignItems: 'center',
+                                }}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Sign In</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Attractive App Name Badge */}
+                        <View style={{ alignItems: 'center', marginTop: 18 }}>
+                            <LinearGradient
+                                colors={['#fff7ed', '#fde68a']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    paddingHorizontal: 18,
+                                    paddingVertical: 8,
+                                    borderRadius: 999,
+                                    shadowColor: '#000',
+                                    shadowOpacity: 0.15,
+                                    shadowRadius: 6,
+                                    shadowOffset: { width: 0, height: 3 },
+                                    elevation: 3,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        fontSize: 16,
+                                        fontWeight: '900',
+                                        color: '#7c2d12',
+                                        letterSpacing: 0.8,
+                                        // textTransform: 'uppercase',
+                                    }}
+                                >
+                                    Minister Desk
+                                </Text>
+                            </LinearGradient>
+                        </View>
+                    </ScrollView>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </View>
     );
 }
