@@ -16,6 +16,9 @@ import {
 } from 'react-native';
 import { supabase } from '../config';
 
+// 🔔 import notification helper
+import { setupPushTokenAfterLogin } from '../notifications-setup';
+
 export default function Login() {
     const router = useRouter();
     const [username, setUsername] = useState('');
@@ -24,16 +27,34 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [errorText, setErrorText] = useState('');
 
-    // redirect if already signed in
+    // redirect if already signed in + register push token
     useEffect(() => {
-        supabase.auth.getSession().then(({ data }) => {
-            if (data.session) router.replace('/');
-        });
-        const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-            if (session) router.replace('/');
-        });
-        return () => sub.subscription.unsubscribe();
-    }, []);
+        let mounted = true;
+
+        (async () => {
+            const { data } = await supabase.auth.getSession();
+            if (data.session && mounted) {
+                // ✅ ensure push token is stored in DB for this user
+                await setupPushTokenAfterLogin();
+                router.replace('/');
+            }
+        })();
+
+        const { data: sub } = supabase.auth.onAuthStateChange(
+            async (_e, session) => {
+                if (session) {
+                    // ✅ update token on any auth change that gives a session
+                    await setupPushTokenAfterLogin();
+                    router.replace('/');
+                }
+            }
+        );
+
+        return () => {
+            mounted = false;
+            sub.subscription.unsubscribe();
+        };
+    }, [router]);
 
     const canLogin = username.trim().length > 0 && password.length >= 6 && !loading;
 
@@ -62,7 +83,10 @@ export default function Login() {
                 email = raw;
             } else {
                 // Case-insensitive username → email via RPC (lower() inside SQL)
-                const { data: rpcEmail, error: rpcErr } = await supabase.rpc('get_email_for_username', { u: raw });
+                const { data: rpcEmail, error: rpcErr } = await supabase.rpc(
+                    'get_email_for_username',
+                    { u: raw }
+                );
                 if (rpcErr) throw rpcErr;
                 if (typeof rpcEmail !== 'string' || rpcEmail.length === 0) {
                     throw new Error('Invalid username or password.');
@@ -77,7 +101,11 @@ export default function Login() {
 
             if (error) {
                 const m = (error.message || '').toLowerCase();
-                if (m.includes('invalid login') || m.includes('invalid_grant') || m.includes('email or password')) {
+                if (
+                    m.includes('invalid login') ||
+                    m.includes('invalid_grant') ||
+                    m.includes('email or password')
+                ) {
                     throw new Error('Invalid username or password.');
                 }
                 if (m.includes('email not confirmed')) {
@@ -87,6 +115,10 @@ export default function Login() {
             }
 
             if (!data?.session) throw new Error('Login failed. Please try again.');
+
+            // ✅ register / refresh Expo push token for this user
+            await setupPushTokenAfterLogin();
+
             router.replace('/');
         } catch (err: any) {
             setErrorText(err?.message ?? 'Unable to sign in.');
@@ -275,7 +307,6 @@ export default function Login() {
                                         fontWeight: '900',
                                         color: '#7c2d12',
                                         letterSpacing: 0.8,
-                                        // textTransform: 'uppercase',
                                     }}
                                 >
                                     Minister Desk

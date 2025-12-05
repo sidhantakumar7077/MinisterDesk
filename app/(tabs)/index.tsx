@@ -240,6 +240,7 @@ export default function HomeScreen() {
         priority: form.priority,
         due_date: form.dueDate ?? todayYMD,     // DB column
         category: form.category,
+        created_by: form.created_by
       };
 
       // optimistic add when today's due date
@@ -251,6 +252,7 @@ export default function HomeScreen() {
       const { error } = await supabase.from('tasks').insert(payload);
       if (error) {
         showToast('error', 'Could not create task', error.message);
+        console.log("Error", error);
       } else {
         showToast('success', 'Task created');
       }

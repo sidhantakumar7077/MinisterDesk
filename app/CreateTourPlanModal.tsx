@@ -241,8 +241,9 @@ export default function CreateTourPlanPage({
             ? form.accompaniedBy.split(',').map((s) => s.trim()).filter(Boolean)
             : null,
           status: 'planned',
-          created_by: (await supabase.auth.getUser()).data.user?.id ?? null,
+          created_by: (await supabase.auth.getUser()).data.user?.id,
         };
+        console.log("User ID", (await supabase.auth.getUser()).data.user?.id ?? null);
         const { error } = await supabase.from('tour_plans').insert([payload]);
         if (error) throw error;
         Alert.alert('Success', 'Tour plan created');

@@ -1,8 +1,9 @@
+import { UserProfile } from '@/components/UserSwitcher';
+import { Bell, Building, Calendar, ChevronDown, ChevronUp, Clock, Download, Eye, Filter, CircleHelp as HelpCircle, IndianRupee, Lock, MapPin, Moon, Search, Settings, Trophy, User } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, Switch } from 'react-native';
-import { Search, Filter, Calendar, MapPin, Building, IndianRupee, Trophy, Clock, FileText, Eye, Download, ChevronDown, ChevronUp, User, Bell, Lock, CircleHelp as HelpCircle, LogOut, Moon, Volume2, Mail, ChevronRight, Settings } from 'lucide-react-native';
-import UserSwitcher, { UserProfile } from '@/components/UserSwitcher';
-import DelegationBanner from '@/components/DelegationBanner';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 const tenders = [
   {
     id: '1',

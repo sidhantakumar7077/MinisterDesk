@@ -9,6 +9,7 @@ export type TaskInsert = {
     assigned_to?: string | null;
     category: string;
     created_date?: string | null; // 'YYYY-MM-DD'
+    created_by?: string | null;
 };
 
 export type TaskRow = TaskInsert & {
@@ -27,6 +28,14 @@ export async function listTasks() {
 }
 
 export async function createTask(payload: TaskInsert) {
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+        console.error('createTask auth error', authError);
+    }
+
+    const authUserId = authData?.user?.id ?? null;
+
     return await supabase
         .from('tasks')
         .insert({
@@ -38,6 +47,7 @@ export async function createTask(payload: TaskInsert) {
             assigned_to: payload.assigned_to ?? null,
             category: payload.category,
             created_date: payload.created_date ?? null,
+            created_by: payload.created_by ?? authUserId,
         })
         .select()
         .single();

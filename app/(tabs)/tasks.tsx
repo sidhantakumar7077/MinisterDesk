@@ -16,13 +16,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { supabase } from '../config';
 import CreateTaskModal, { CreateTaskForm, Priority } from '../CreateTaskModal';
@@ -72,6 +72,7 @@ function mapToDB(payload: Partial<TodoItem>) {
     // ...(payload.assignedTo !== undefined && { assigned_to: payload.assignedTo }),
     ...(payload.category !== undefined && { category: payload.category }),
     ...(payload.createdDate !== undefined && { created_date: payload.createdDate }),
+    ...(payload.created_by !== undefined && { created_by: payload.created_by }),
   };
 }
 
@@ -246,6 +247,7 @@ export default function TasksScreen() {
           dueDate: form.dueDate ?? selectedYMD,
           // assignedTo: form.assignedTo ?? null,
           category: form.category,
+          created_by: (await supabase.auth.getUser()).data.user?.id,
         });
 
         // optimistic
@@ -260,6 +262,7 @@ export default function TasksScreen() {
             dueDate: form.dueDate ?? selectedYMD,
             // assignedTo: form.assignedTo ?? null,
             category: form.category,
+            created_by: payload.created_by,
           },
           ...prev,
         ]);
@@ -279,6 +282,7 @@ export default function TasksScreen() {
           dueDate: form.dueDate ?? null,
           // assignedTo: form.assignedTo ?? null,
           category: form.category,
+          created_by: (await supabase.auth.getUser()).data.user?.id,
         });
 
         // optimistic
@@ -294,6 +298,7 @@ export default function TasksScreen() {
                 dueDate: form.dueDate ?? null,
                 // assignedTo: form.assignedTo ?? null,
                 category: form.category,
+                created_by: patch.created_by,
               }
               : t
           )

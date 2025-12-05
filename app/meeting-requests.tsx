@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
-import { ArrowLeft, Search, Filter, Clock, User, Building, Calendar, MapPin, Users, FileText, Phone, Mail, Check, X, Pause, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { ArrowLeft, Calendar, Check, ChevronDown, ChevronUp, Clock, Filter, Mail, Pause, Phone, Search, User, Users, X } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const meetingRequests = [
   {

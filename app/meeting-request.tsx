@@ -17,7 +17,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,6 +25,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from './config';
 
 // ---- helpers ----
@@ -99,6 +99,17 @@ export default function MeetingRequestScreen() {
     try {
       setLoading(true);
 
+      // 🔑 get current logged-in user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) throw userError;
+      if (!user) {
+        throw new Error('You must be logged in to create a meeting');
+      }
+
       // turn comma-separated attendees into array
       const attendees = attendeesText
         .split(',')
@@ -115,6 +126,7 @@ export default function MeetingRequestScreen() {
         priority, // <- from picker
         attendees, // <- array
         location: location || 'TBD',
+        created_by: user.id,
       });
 
       if (error) throw error;
@@ -131,7 +143,8 @@ export default function MeetingRequestScreen() {
       setLocation('');
       router.back();
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Unable to submit meeting request.');
+      Alert.alert('Error1', e?.message ?? 'Unable to submit meeting request.');
+      console.log("Error", e?.message ?? e);
     } finally {
       setLoading(false);
     }

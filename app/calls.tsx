@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
-import { ArrowLeft, Phone, PhoneCall, Clock, Plus, User, Building, MessageSquare } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { ArrowLeft, Building, Clock, MessageSquare, PhoneCall, Plus, User } from 'lucide-react-native';
+import React from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const incomingCalls = [
   {

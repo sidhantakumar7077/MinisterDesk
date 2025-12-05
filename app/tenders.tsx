@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput } from 'react-native';
-import { ArrowLeft, Search, Filter, Calendar, MapPin, Building, IndianRupee, Trophy, Clock, FileText, Eye, Download } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { ArrowLeft, Building, Calendar, Clock, Download, Eye, Filter, IndianRupee, MapPin, Search, Trophy } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const tenders = [
   {

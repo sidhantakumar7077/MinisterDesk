@@ -1,0 +1,6 @@
+name = "send-due-notifications"
+verify_jwt = false   # <-- disable JWT for this function
+
+[triggers.periodic]
+# run every minute (adjust as you like)
+schedule = "*/1 * * * *"

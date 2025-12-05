@@ -6,13 +6,13 @@ import {
     Alert,
     Modal,
     Platform,
-    SafeAreaView,
     ScrollView, StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
@@ -23,6 +23,7 @@ export type CreateTaskForm = {
     dueDate?: string | null;     // YYYY-MM-DD
     // assignedTo?: string | null;
     category: string;
+    created_by?: string | null;
 };
 
 type Mode = 'create' | 'edit';
